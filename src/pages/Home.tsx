@@ -95,7 +95,7 @@ const Home = () => {
                   <Link to="/login">Iniciar Sesión</Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="border-white text-white hover:bg-white/10">
-                  <Link to="/mapa">Ver Centros Médicos</Link>
+                  <Link to="/registro">Registro</Link>
                 </Button>
               </>
             ) : (

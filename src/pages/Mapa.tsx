@@ -1,71 +1,147 @@
-import { MapPin, Phone, Mail, Clock, Navigation } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { MapPin, Phone, Mail, Clock, Navigation } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix Leaflet default icon issue
+import icon from 'leaflet/dist/images/marker-icon.png';
+import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+
+const DefaultIcon = L.icon({
+  iconUrl: icon,
+  shadowUrl: iconShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41]
+});
+
+L.Marker.prototype.options.icon = DefaultIcon;
+
+const cesfams = [
+  {
+    id: 1,
+    nombre: 'CESFAM Madre Teresa de Calcuta',
+    direccion: 'Av. Argentina 2830, Valparaíso',
+    telefono: '+56 32 2255800',
+    correo: 'cesfam.mtc@ssvalparaiso.cl',
+    horario: 'Lunes a Viernes: 08:00 - 17:00',
+    region: 'Valparaíso',
+    estado: 'Operativo',
+    lat: -33.0458,
+    lng: -71.6197
+  },
+  {
+    id: 2,
+    nombre: 'CESFAM Recreo',
+    direccion: 'Calle Recreo 1550, Viña del Mar',
+    telefono: '+56 32 2185400',
+    correo: 'cesfam.recreo@ssvalparaiso.cl',
+    horario: 'Lunes a Viernes: 08:00 - 20:00, Sábados: 09:00 - 13:00',
+    region: 'Valparaíso',
+    estado: 'Operativo',
+    lat: -33.0239,
+    lng: -71.5519
+  },
+  {
+    id: 3,
+    nombre: 'CESFAM Los Castaños',
+    direccion: 'Los Castaños 1444, Viña del Mar',
+    telefono: '+56 32 2672900',
+    correo: 'cesfam.castanos@ssvalparaiso.cl',
+    horario: 'Lunes a Viernes: 08:00 - 17:00',
+    region: 'Valparaíso',
+    estado: 'Operativo',
+    lat: -33.0364,
+    lng: -71.5398
+  },
+  {
+    id: 4,
+    nombre: 'CESFAM La Faena',
+    direccion: 'Av. La Faena 850, Peñalolén',
+    telefono: '+56 2 2522 8200',
+    correo: 'cesfam.lafaena@ssms.cl',
+    horario: 'Lunes a Viernes: 08:00 - 20:00',
+    region: 'Metropolitana',
+    estado: 'Operativo',
+    lat: -33.4889,
+    lng: -70.5782
+  },
+  {
+    id: 5,
+    nombre: 'CESFAM Barón',
+    direccion: 'Tomás Ramos 134, Valparaíso',
+    telefono: '+56 32 2255700',
+    correo: 'cesfam.baron@ssvalparaiso.cl',
+    horario: 'Lunes a Viernes: 08:00 - 17:00',
+    region: 'Valparaíso',
+    estado: 'Operativo',
+    lat: -33.0384,
+    lng: -71.6270
+  },
+  {
+    id: 6,
+    nombre: 'CESFAM Placeres',
+    direccion: 'Av. Placeres 2260, Valparaíso',
+    telefono: '+56 32 2255600',
+    correo: 'cesfam.placeres@ssvalparaiso.cl',
+    horario: 'Lunes a Viernes: 08:00 - 20:00',
+    region: 'Valparaíso',
+    estado: 'Operativo',
+    lat: -33.0294,
+    lng: -71.6417
+  },
+  {
+    id: 7,
+    nombre: 'CESFAM Cordillera Andina',
+    direccion: 'Av. Cordillera 3456, Puente Alto',
+    telefono: '+56 2 2522 9100',
+    correo: 'cesfam.cordillera@ssms.cl',
+    horario: 'Lunes a Viernes: 08:00 - 18:00',
+    region: 'Metropolitana',
+    estado: 'Operativo',
+    lat: -33.6103,
+    lng: -70.5756
+  }
+];
 
 const Mapa = () => {
-  const cesfams = [
-    {
-      id: 1,
-      nombre: 'CESFAM La Granja',
-      direccion: 'Av. La Granja 1234, Santiago',
-      telefono: '+56 2 2222 1111',
-      correo: 'lagranja@cesfam.cl',
-      horario: 'Lun-Vie: 8:00-20:00, Sáb: 9:00-14:00',
-      region: 'Metropolitana',
-      estado: 'Abierto'
-    },
-    {
-      id: 2,
-      nombre: 'CESFAM Maipú',
-      direccion: 'Calle Principal 567, Maipú',
-      telefono: '+56 2 2222 2222',
-      correo: 'maipu@cesfam.cl',
-      horario: 'Lun-Vie: 8:00-20:00, Sáb: 9:00-14:00',
-      region: 'Metropolitana',
-      estado: 'Abierto'
-    },
-    {
-      id: 3,
-      nombre: 'CESFAM San Bernardo',
-      direccion: 'Av. O\'Higgins 890, San Bernardo',
-      telefono: '+56 2 2222 3333',
-      correo: 'sanbernardo@cesfam.cl',
-      horario: 'Lun-Vie: 8:00-20:00, Sáb: 9:00-14:00',
-      region: 'Metropolitana',
-      estado: 'Abierto'
-    },
-    {
-      id: 4,
-      nombre: 'CESFAM Valparaíso Centro',
-      direccion: 'Plaza Sotomayor 123, Valparaíso',
-      telefono: '+56 32 2222 4444',
-      correo: 'valpocentro@cesfam.cl',
-      horario: 'Lun-Vie: 8:00-20:00, Sáb: 9:00-14:00',
-      region: 'Valparaíso',
-      estado: 'Abierto'
-    },
-    {
-      id: 5,
-      nombre: 'CESFAM Concepción Norte',
-      direccion: 'Av. Paicaví 456, Concepción',
-      telefono: '+56 41 2222 5555',
-      correo: 'concepcionnorte@cesfam.cl',
-      horario: 'Lun-Vie: 8:00-20:00, Sáb: 9:00-14:00',
-      region: 'Biobío',
-      estado: 'Abierto'
-    },
-    {
-      id: 6,
-      nombre: 'CESFAM La Serena',
-      direccion: 'Calle Brasil 789, La Serena',
-      telefono: '+56 51 2222 6666',
-      correo: 'laserena@cesfam.cl',
-      horario: 'Lun-Vie: 8:00-20:00, Sáb: 9:00-14:00',
-      region: 'Coquimbo',
-      estado: 'Abierto'
-    }
-  ];
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current) return;
+
+    // Initialize map centered on Chile
+    const map = L.map(mapContainerRef.current).setView([-33.4489, -70.6693], 7);
+    mapRef.current = map;
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+    }).addTo(map);
+
+    // Add markers for each CESFAM
+    cesfams.forEach((cesfam) => {
+      const marker = L.marker([cesfam.lat, cesfam.lng]).addTo(map);
+      marker.bindPopup(`
+        <div class="p-2">
+          <h3 class="font-bold">${cesfam.nombre}</h3>
+          <p class="text-sm">${cesfam.direccion}</p>
+          <p class="text-sm">${cesfam.telefono}</p>
+        </div>
+      `);
+    });
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 py-12 px-4">
@@ -75,29 +151,9 @@ const Mapa = () => {
           <p className="text-muted-foreground">Encuentra el CESFAM más cercano a tu ubicación</p>
         </div>
 
-        {/* Mapa simulado */}
+        {/* Mapa OpenStreetMap */}
         <Card className="mb-8 overflow-hidden">
-          <div className="h-64 md:h-96 bg-gradient-to-br from-primary/20 to-accent/20 relative flex items-center justify-center">
-            <div className="text-center">
-              <MapPin className="w-16 h-16 text-primary mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Mapa Interactivo</h3>
-              <p className="text-muted-foreground mb-4">Visualización de CESFAM en Chile</p>
-              <Button className="bg-primary">
-                <Navigation className="w-4 h-4 mr-2" />
-                Usar Mi Ubicación
-              </Button>
-            </div>
-            {/* Simulación de pines en el mapa */}
-            <div className="absolute top-1/4 left-1/4 w-8 h-8 bg-destructive rounded-full animate-pulse flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-white" />
-            </div>
-            <div className="absolute top-1/3 right-1/3 w-8 h-8 bg-destructive rounded-full animate-pulse flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-white" />
-            </div>
-            <div className="absolute bottom-1/4 left-1/2 w-8 h-8 bg-destructive rounded-full animate-pulse flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-white" />
-            </div>
-          </div>
+          <div ref={mapContainerRef} className="h-96 w-full" />
         </Card>
 
         {/* Lista de CESFAM */}
@@ -128,9 +184,16 @@ const Mapa = () => {
                   <Clock className="w-4 h-4 mt-0.5 text-accent" />
                   <span>{cesfam.horario}</span>
                 </div>
-                <Button className="w-full mt-4 gradient-primary">
+                <Button
+                  className="w-full mt-4 gradient-primary"
+                  onClick={() => {
+                    if (mapRef.current) {
+                      mapRef.current.setView([cesfam.lat, cesfam.lng], 15);
+                    }
+                  }}
+                >
                   <Navigation className="w-4 h-4 mr-2" />
-                  Cómo Llegar
+                  Ver en Mapa
                 </Button>
               </CardContent>
             </Card>

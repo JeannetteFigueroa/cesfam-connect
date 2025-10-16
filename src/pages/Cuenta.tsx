@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, Mail, Phone, CreditCard, Edit2, Save } from 'lucide-react';
+import { User, Mail, Phone, CreditCard, Edit2, Save, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { QRCodeSVG } from 'qrcode.react';
 
 const Cuenta = () => {
   const { user } = useAuth();
@@ -171,6 +172,38 @@ const Cuenta = () => {
                   <p className="text-xs mt-2 opacity-75">Código QR de identificación</p>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Código QR */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <QrCode className="h-5 w-5" />
+                Código QR Personal
+              </CardTitle>
+              <CardDescription>
+                Código único con tu información personal y CESFAM
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center space-y-4">
+              <div className="p-4 bg-white rounded-lg">
+                <QRCodeSVG 
+                  value={JSON.stringify({
+                    nombre: user?.nombre,
+                    rut: user?.rut,
+                    correo: user?.correo,
+                    role: user?.role,
+                    cesfam: "CESFAM Madre Teresa de Calcuta"
+                  })}
+                  size={200}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Escanea este código para acceder a tu información personal
+              </p>
             </CardContent>
           </Card>
         </div>
