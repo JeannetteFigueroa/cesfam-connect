@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, MapPin, FileText, Calendar, Settings, LogOut, Activity } from 'lucide-react';
+import { Menu, X, User, MapPin, FileText, Calendar, Settings, LogOut, Activity, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
@@ -16,18 +16,48 @@ const Navbar = () => {
     setIsOpen(false);
   };
 
-  const navItems = isAuthenticated ? [
-    { name: 'Inicio', path: '/', icon: Activity },
-    { name: 'Cuenta', path: '/cuenta', icon: User },
-    { name: 'Mapa', path: '/mapa', icon: MapPin },
-    { name: 'Exámenes', path: '/examenes', icon: FileText },
-    { name: 'Historial', path: '/historial', icon: FileText },
-    { name: 'Agendar Hora', path: '/agendar', icon: Calendar },
-    { name: 'Configuración', path: '/configuracion', icon: Settings },
-  ] : [
-    { name: 'Inicio', path: '/', icon: Activity },
-    { name: 'Mapa', path: '/mapa', icon: MapPin },
-  ];
+  // Definir los items según rol
+  const navItems = () => {
+    if (!isAuthenticated) {
+      return [
+        { name: 'Inicio', path: '/', icon: Activity },
+        { name: 'Mapa', path: '/mapa', icon: MapPin },
+      ];
+    }
+
+    switch (user?.role) {
+      case 'paciente':
+        return [
+          { name: 'Inicio', path: '/', icon: Activity },
+          { name: 'Cuenta', path: '/cuenta', icon: User },
+          { name: 'Mapa', path: '/mapa', icon: MapPin },
+          { name: 'Exámenes', path: '/examenes', icon: FileText },
+          { name: 'Historial', path: '/historial', icon: FileText },
+          { name: 'Agendar Hora', path: '/agendar', icon: Calendar },
+          { name: 'Configuración', path: '/configuracion', icon: Settings },
+        ];
+      case 'medico':
+        return [
+          { name: 'Inicio', path: '/medico/home', icon: Activity },
+          { name: 'Cuenta', path: '/cuenta', icon: User },
+          { name: 'Pacientes', path: '/medico/HistorialPacientes', icon: Users },
+          { name: 'Turnos Asignados', path: '/medico/Turnos', icon: Calendar },
+          { name: 'Documentos', path: '/medico/Documentos', icon: FileText },
+          { name: 'Disponibilidad', path: '/medico/Disponibilidad', icon: Calendar },
+          { name: 'Configuración', path: '/configuracion', icon: Settings },
+        ];
+      case 'admin':
+        return [
+          { name: 'Inicio', path: '/admin/home', icon: Activity },
+          { name: 'Cuenta', path: '/cuenta', icon: User },
+          { name: 'Gestión de Turnos', path: '/admin/GestionTurnos', icon: Calendar},
+          { name: 'Panel de Control', path: '/admin/Dashboard', icon: FileText },
+          { name: 'Configuración', path: '/configuracion', icon: Settings },
+        ];
+      default:
+        return [{ name: 'Inicio', path: '/', icon: Activity }];
+    }
+  };
 
   const isActivePath = (path: string) => location.pathname === path;
 
@@ -45,24 +75,23 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navItems.map((item) => {
+            {navItems().map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-smooth ${
-                    isActivePath(item.path)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-secondary-foreground hover:bg-primary/10'
-                  }`}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-smooth ${isActivePath(item.path)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-secondary-foreground hover:bg-primary/10'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="text-sm font-medium">{item.name}</span>
                 </Link>
               );
             })}
-            
+
             {isAuthenticated ? (
               <Button
                 variant="ghost"
@@ -98,25 +127,24 @@ const Navbar = () => {
       {isOpen && (
         <div className="md:hidden bg-secondary/95 backdrop-blur-lg border-t border-border">
           <div className="px-4 pt-2 pb-4 space-y-1">
-            {navItems.map((item) => {
+            {navItems().map((item) => {
               const Icon = item.icon;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setIsOpen(false)}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-smooth ${
-                    isActivePath(item.path)
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-secondary-foreground hover:bg-primary/10'
-                  }`}
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-smooth ${isActivePath(item.path)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-secondary-foreground hover:bg-primary/10'
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{item.name}</span>
                 </Link>
               );
             })}
-            
+
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}

@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+
+// 🧠 Páginas Paciente
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Registro from "./pages/Registro";
@@ -15,31 +17,66 @@ import Examenes from "./pages/Examenes";
 import Historial from "./pages/Historial";
 import Agendar from "./pages/Agendar";
 import Configuracion from "./pages/Configuracion";
-import NotFound from "./pages/NotFound";
+
+// 🩺 Páginas Médico
+import HomeMedico from "./pages/medico/HomeMedico";
 import Turnos from "./pages/medico/Turnos";
 import HistorialPacientes from "./pages/medico/HistorialPacientes";
 import Documentos from "./pages/medico/Documentos";
 import Disponibilidad from "./pages/medico/Disponibilidad";
+
+// 👨‍💼 Páginas Admin
+import HomeAdmin from "./pages/admin/HomeAdmin";
 import Dashboard from "./pages/admin/Dashboard";
 import GestionTurnos from "./pages/admin/GestionTurnos";
 
+// 🧩 Página general
+import NotFound from "./pages/NotFound";
+
 const queryClient = new QueryClient();
 
+// 🔒 Ruta protegida general (solo usuarios logueados)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
+// 🧩 Nueva ruta protegida por rol
+const RoleProtectedRoute = ({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles: string[];
+}) => {
+  const { isAuthenticated, user } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppContent = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">
         <Routes>
+          {/* Rutas públicas */}
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Registro />} />
           <Route path="/mapa" element={<Mapa />} />
+
+          {/* Rutas protegidas Paciente */}
           <Route
             path="/cuenta"
             element={
@@ -80,56 +117,76 @@ const AppContent = () => {
               </ProtectedRoute>
             }
           />
-          {/* Rutas para médicos */}
+
+          {/* Rutas Médico */}
           <Route
-            path="/medico/turnos"
+            path="/medico/home"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={["medico"]}>
+                <HomeMedico />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/medico/Turnos"
+            element={
+              <RoleProtectedRoute allowedRoles={["medico"]}>
                 <Turnos />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
-            path="/medico/historial-pacientes"
+            path="/medico/HistorialPacientes"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={["medico"]}>
                 <HistorialPacientes />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
-            path="/medico/documentos"
+            path="/medico/Documentos"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={["medico"]}>
                 <Documentos />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
-            path="/medico/disponibilidad"
+            path="/medico/Disponibilidad"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={["medico"]}>
                 <Disponibilidad />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
-          {/* Rutas para admin */}
+
+          {/*  Rutas Admin */}
           <Route
-            path="/admin/dashboard"
+            path="/admin/home"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={["admin"]}>
+                <HomeAdmin />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/Dashboard"
+            element={
+              <RoleProtectedRoute allowedRoles={["admin"]}>
                 <Dashboard />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
-            path="/admin/gestion-turnos"
+            path="/admin/GestionTurnos"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={["admin"]}>
                 <GestionTurnos />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
+
+          {/* Página no encontrada */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
