@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 
 const Home = () => {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   const services = [
     {
@@ -89,7 +89,7 @@ const Home = () => {
             Accede a servicios médicos de calidad, consulta tus exámenes y agenda citas en línea
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {!isAuthenticated ? (
+            {!user ? (
               <>
                 <Button asChild size="lg" className="bg-white text-secondary hover:bg-white/90">
                   <Link to="/login">Iniciar Sesión</Link>
@@ -123,7 +123,7 @@ const Home = () => {
             {services.map((service, index) => {
               const Icon = service.icon;
               return (
-                <Link key={index} to={isAuthenticated ? service.link : '/login'}>
+                <Link key={index} to={user ? service.link : '/login'}>
                   <Card className="h-full hover:shadow-lg transition-smooth hover:-translate-y-1 cursor-pointer">
                     <CardHeader>
                       <div className={`w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 ${service.color}`}>
@@ -200,7 +200,7 @@ const Home = () => {
           <p className="text-lg mb-8 opacity-90">
             Únete a miles de personas que confían en MiCESFAM para su bienestar
           </p>
-          {!isAuthenticated && (
+          {!user && (
             <Button asChild size="lg" className="bg-white text-secondary hover:bg-white/90">
               <Link to="/login">Comenzar Ahora</Link>
             </Button>

@@ -37,11 +37,12 @@ const queryClient = new QueryClient();
 
 // 🔒 Ruta protegida general (solo usuarios logueados)
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  const { user, loading } = useAuth();
+  
+  if (loading) return <div>Cargando...</div>;
+  return user ? <>{children}</> : <Navigate to="/login" />;
 };
 
-// 🧩 Nueva ruta protegida por rol
 const RoleProtectedRoute = ({
   children,
   allowedRoles,
@@ -49,13 +50,15 @@ const RoleProtectedRoute = ({
   children: React.ReactNode;
   allowedRoles: string[];
 }) => {
-  const { isAuthenticated, user } = useAuth();
+  const { user, userRole, loading } = useAuth();
 
-  if (!isAuthenticated) {
+  if (loading) return <div>Cargando...</div>;
+  
+  if (!user) {
     return <Navigate to="/login" />;
   }
 
-  if (!user || !allowedRoles.includes(user.role)) {
+  if (!userRole || !allowedRoles.includes(userRole)) {
     return <Navigate to="/" replace />;
   }
 
@@ -63,7 +66,7 @@ const RoleProtectedRoute = ({
 };
 
 const AppContent = () => {
-  const { user } = useAuth();
+  const { user, userRole } = useAuth();
 
   return (
     <div className="min-h-screen flex flex-col">

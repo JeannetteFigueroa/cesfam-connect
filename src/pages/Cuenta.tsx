@@ -1,29 +1,71 @@
-import { useState } from 'react';
-import { User, Mail, Phone, CreditCard, Edit2, Save, QrCode } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User as UserIcon, Mail, Phone, CreditCard, Edit2, Save, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { QRCodeSVG } from 'qrcode.react';
 
 const Cuenta = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
+  const { user, userRole } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
-    nombre: user?.nombre || '',
-    telefono: user?.telefono || '',
+    nombre: '',
+    apellido: '',
+    celular: '',
   });
 
-  const handleSave = () => {
-    toast({
-      title: "Cambios guardados",
-      description: "Tu información ha sido actualizada exitosamente",
-    });
-    setIsEditing(false);
+  useEffect(() => {
+    if (user) {
+      loadProfile();
+    }
+  }, [user]);
+
+  const loadProfile = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+    
+    if (data) {
+      setProfile(data);
+      setFormData({
+        nombre: data.nombre,
+        apellido: data.apellido,
+        celular: data.celular
+      });
+    }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!user) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        nombre: formData.nombre,
+        apellido: formData.apellido,
+        celular: formData.celular
+      })
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Error al guardar cambios');
+    } else {
+      toast.success('Cambios guardados exitosamente');
+      setIsEditing(false);
+      loadProfile();
+    }
   };
 
   const getRoleBadge = () => {
@@ -34,22 +76,25 @@ const Cuenta = () => {
     };
     
     return (
-      <Badge className={`${roleColors[user?.role || 'paciente']} text-white`}>
-        {user?.role === 'paciente' ? 'Paciente' : user?.role === 'medico' ? 'Médico' : 'Administrador'}
+      <Badge className={`${roleColors[userRole || 'paciente']} text-white`}>
+        {userRole === 'paciente' ? 'Paciente' : userRole === 'medico' ? 'Médico' : 'Administrador'}
       </Badge>
     );
   };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Cargando...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 py-12 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-secondary mb-2">Mi Cuenta</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">Mi Cuenta</h1>
           <p className="text-muted-foreground">Gestiona tu información personal</p>
         </div>
 
         <div className="grid gap-6">
-          {/* Información Personal */}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -62,18 +107,18 @@ const Cuenta = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center space-x-4 pb-6 border-b">
-                <div className="w-20 h-20 rounded-full bg-gradient-primary flex items-center justify-center">
-                  <User className="w-10 h-10 text-white" />
+                <div className="w-20 h-20 rounded-full bg-gradient-to-r from-primary to-accent flex items-center justify-center">
+                  <UserIcon className="w-10 h-10 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold">{user?.nombre}</h3>
-                  <p className="text-muted-foreground">{user?.correo}</p>
+                  <h3 className="text-xl font-semibold">{profile?.nombre} {profile?.apellido}</h3>
+                  <p className="text-muted-foreground">{user?.email}</p>
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Nombre Completo</Label>
+                  <Label>Nombre</Label>
                   {isEditing ? (
                     <Input
                       value={formData.nombre}
@@ -81,17 +126,32 @@ const Cuenta = () => {
                     />
                   ) : (
                     <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <span>{user?.nombre}</span>
+                      <UserIcon className="w-4 h-4 text-muted-foreground" />
+                      <span>{profile?.nombre}</span>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>RUT</Label>
+                  <Label>Apellido</Label>
+                  {isEditing ? (
+                    <Input
+                      value={formData.apellido}
+                      onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                      <UserIcon className="w-4 h-4 text-muted-foreground" />
+                      <span>{profile?.apellido}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Documento</Label>
                   <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
                     <CreditCard className="w-4 h-4 text-muted-foreground" />
-                    <span>{user?.rut}</span>
+                    <span>{profile?.documento}</span>
                   </div>
                 </div>
 
@@ -99,7 +159,7 @@ const Cuenta = () => {
                   <Label>Correo Electrónico</Label>
                   <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
                     <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span>{user?.correo}</span>
+                    <span>{user?.email}</span>
                   </div>
                 </div>
 
@@ -107,15 +167,23 @@ const Cuenta = () => {
                   <Label>Teléfono</Label>
                   {isEditing ? (
                     <Input
-                      value={formData.telefono}
-                      onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                      value={formData.celular}
+                      onChange={(e) => setFormData({ ...formData, celular: e.target.value })}
                     />
                   ) : (
                     <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
                       <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span>{user?.telefono || 'No registrado'}</span>
+                      <span>{profile?.celular || 'No registrado'}</span>
                     </div>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Fecha de Nacimiento</Label>
+                  <div className="flex items-center space-x-2 p-3 bg-muted rounded-lg">
+                    <CreditCard className="w-4 h-4 text-muted-foreground" />
+                    <span>{profile?.fecha_nacimiento}</span>
+                  </div>
                 </div>
               </div>
 
@@ -125,13 +193,13 @@ const Cuenta = () => {
                     <Button variant="outline" onClick={() => setIsEditing(false)}>
                       Cancelar
                     </Button>
-                    <Button onClick={handleSave} className="bg-success hover:bg-success/90">
+                    <Button onClick={handleSave}>
                       <Save className="w-4 h-4 mr-2" />
                       Guardar Cambios
                     </Button>
                   </>
                 ) : (
-                  <Button onClick={() => setIsEditing(true)} className="bg-primary">
+                  <Button onClick={() => setIsEditing(true)}>
                     <Edit2 className="w-4 h-4 mr-2" />
                     Editar Información
                   </Button>
@@ -140,42 +208,36 @@ const Cuenta = () => {
             </CardContent>
           </Card>
 
-          {/* Credencial Digital */}
           <Card>
             <CardHeader>
               <CardTitle>Credencial Digital</CardTitle>
               <CardDescription>Tu identificación médica</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="bg-gradient-primary text-white p-6 rounded-xl">
+              <div className="bg-gradient-to-r from-primary to-accent text-white p-6 rounded-xl">
                 <div className="flex justify-between items-start mb-8">
                   <div>
                     <p className="text-sm opacity-75 mb-1">MiCESFAM</p>
-                    <p className="text-2xl font-bold">{user?.nombre}</p>
+                    <p className="text-2xl font-bold">{profile?.nombre} {profile?.apellido}</p>
                   </div>
-                  <User className="w-12 h-12" />
+                  <UserIcon className="w-12 h-12" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs opacity-75">RUT</p>
-                    <p className="font-semibold">{user?.rut}</p>
+                    <p className="text-xs opacity-75">Documento</p>
+                    <p className="font-semibold">{profile?.documento}</p>
                   </div>
                   <div>
                     <p className="text-xs opacity-75">Tipo</p>
-                    <p className="font-semibold">{user?.role === 'paciente' ? 'Paciente' : user?.role === 'medico' ? 'Médico' : 'Administrador'}</p>
+                    <p className="font-semibold">
+                      {userRole === 'paciente' ? 'Paciente' : userRole === 'medico' ? 'Médico' : 'Administrador'}
+                    </p>
                   </div>
-                </div>
-                <div className="mt-6 bg-white/20 backdrop-blur-sm p-4 rounded-lg text-center">
-                  <div className="w-32 h-32 bg-white mx-auto rounded-lg flex items-center justify-center">
-                    <CreditCard className="w-16 h-16 text-primary" />
-                  </div>
-                  <p className="text-xs mt-2 opacity-75">Código QR de identificación</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Código QR */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -188,13 +250,12 @@ const Cuenta = () => {
             </CardHeader>
             <CardContent className="flex flex-col items-center space-y-4">
               <div className="p-4 bg-white rounded-lg">
-                <QRCodeSVG 
+                <QRCodeSVG
                   value={JSON.stringify({
-                    nombre: user?.nombre,
-                    rut: user?.rut,
-                    correo: user?.correo,
-                    role: user?.role,
-                    cesfam: "CESFAM Madre Teresa de Calcuta"
+                    nombre: `${profile?.nombre} ${profile?.apellido}`,
+                    documento: profile?.documento,
+                    email: user?.email,
+                    role: userRole
                   })}
                   size={200}
                   level="H"

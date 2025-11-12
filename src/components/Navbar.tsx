@@ -6,26 +6,26 @@ import { Button } from '@/components/ui/button';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, userRole, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/');
     setIsOpen(false);
   };
 
   // Definir los items según rol
   const navItems = () => {
-    if (!isAuthenticated) {
+    if (!user) {
       return [
         { name: 'Inicio', path: '/', icon: Activity },
         { name: 'Mapa', path: '/mapa', icon: MapPin },
       ];
     }
 
-    switch (user?.role) {
+    switch (userRole) {
       case 'paciente':
         return [
           { name: 'Inicio', path: '/', icon: Activity },
@@ -92,7 +92,7 @@ const Navbar = () => {
               );
             })}
 
-            {isAuthenticated ? (
+            {user ? (
               <Button
                 variant="ghost"
                 onClick={handleLogout}
@@ -145,7 +145,7 @@ const Navbar = () => {
               );
             })}
 
-            {isAuthenticated ? (
+            {user ? (
               <button
                 onClick={handleLogout}
                 className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-secondary-foreground hover:bg-destructive/10 hover:text-destructive transition-smooth"

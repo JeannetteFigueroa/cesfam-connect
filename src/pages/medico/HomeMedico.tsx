@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/contexts/AuthContext';
 
 const HomeMedico = () => {
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   const tools = [
     {
@@ -94,7 +94,7 @@ const HomeMedico = () => {
             {tools.map((tool, index) => {
               const Icon = tool.icon;
               return (
-                <Link key={index} to={isAuthenticated ? tool.link : '/login'}>
+                <Link key={index} to={user ? tool.link : '/login'}>
                   <Card className="h-full hover:shadow-lg transition-smooth hover:-translate-y-1 cursor-pointer">
                     <CardHeader>
                       <div className={`w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-4 ${tool.color}`}>
