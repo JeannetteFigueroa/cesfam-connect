@@ -29,6 +29,7 @@ import Disponibilidad from "./pages/medico/Disponibilidad";
 import HomeAdmin from "./pages/admin/HomeAdmin";
 import Dashboard from "./pages/admin/Dashboard";
 import GestionTurnos from "./pages/admin/GestionTurnos";
+import GestionMedicos from "./pages/admin/GestionMedicos";
 
 // 🧩 Página general
 import NotFound from "./pages/NotFound";
@@ -173,18 +174,26 @@ const AppContent = () => {
             }
           />
           <Route
-            path="/admin/Dashboard"
+            path="/admin/medicos"
             element={
               <RoleProtectedRoute allowedRoles={["admin"]}>
-                <Dashboard />
+                <GestionMedicos />
               </RoleProtectedRoute>
             }
           />
           <Route
-            path="/admin/GestionTurnos"
+            path="/admin/turnos"
             element={
               <RoleProtectedRoute allowedRoles={["admin"]}>
                 <GestionTurnos />
+              </RoleProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/Dashboard"
+            element={
+              <RoleProtectedRoute allowedRoles={["admin"]}>
+                <Dashboard />
               </RoleProtectedRoute>
             }
           />
