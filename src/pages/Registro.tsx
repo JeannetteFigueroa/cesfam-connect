@@ -351,7 +351,7 @@ export default function Registro() {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground" disabled={loading}>
               {loading ? "Registrando..." : "Registrarse"}
             </Button>
 
