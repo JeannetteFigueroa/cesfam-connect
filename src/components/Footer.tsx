@@ -96,7 +96,7 @@ const Footer = () => {
               © 2025 MiCESFAM. Todos los derechos reservados.
             </p>
             <p className="text-sm opacity-75 flex items-center">
-              Desarrollado con <Heart className="w-4 h-4 mx-1 text-destructive" /> por el Equipo CESFAM
+              Desarrollado con <Heart className="w-4 h-4 mx-1 text-destructive" /> por el Equipo 7 (JFKDVC)
             </p>
           </div>
         </div>
