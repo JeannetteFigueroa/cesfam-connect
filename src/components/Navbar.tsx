@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, User, MapPin, FileText, Calendar, Settings, LogOut, Activity, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -50,7 +51,8 @@ const Navbar = () => {
         return [
           { name: 'Inicio', path: '/admin/home', icon: Activity },
           { name: 'Cuenta', path: '/cuenta', icon: User },
-          { name: 'Gestión de Turnos', path: '/admin/GestionTurnos', icon: Calendar},
+          { name: 'Médicos', path: '/admin/medicos', icon: Users },
+          { name: 'Gestión de Turnos', path: '/admin/turnos', icon: Calendar},
           { name: 'Panel de Control', path: '/admin/Dashboard', icon: FileText },
           { name: 'Configuración', path: '/configuracion', icon: Settings },
         ];
@@ -91,6 +93,8 @@ const Navbar = () => {
                 </Link>
               );
             })}
+
+            <ThemeToggle />
 
             {user ? (
               <Button

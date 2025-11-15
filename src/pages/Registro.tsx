@@ -21,7 +21,6 @@ const registroSchema = z.object({
   celular: z.string().min(9, "Celular inválido"),
   fecha_nacimiento: z.string().min(1, "Fecha de nacimiento obligatoria"),
   tipo_documento: z.enum(["rut", "pasaporte"]),
-  role: z.enum(["paciente", "medico", "admin"]),
   comuna: z.string().min(1, "Comuna obligatoria"),
   direccion: z.string().min(1, "Dirección obligatoria")
 });
@@ -52,11 +51,7 @@ export default function Registro() {
     celular: "",
     email: "",
     password: "",
-    confirmPassword: "",
-    role: "paciente" as "paciente" | "medico" | "admin",
-    // Campos extra para médicos
-    especialidad: "",
-    rut_profesional: ""
+    confirmPassword: ""
   });
 
   useEffect(() => {
@@ -80,7 +75,8 @@ export default function Registro() {
 
     const validation = registroSchema.safeParse({
       ...formData,
-      tipo_documento: tipoDocumento
+      tipo_documento: tipoDocumento,
+      role: 'paciente'
     });
 
     if (!validation.success) {
@@ -102,7 +98,7 @@ export default function Registro() {
       documento: formData.documento,
       celular: formData.celular,
       fecha_nacimiento: formData.fecha_nacimiento,
-      role: formData.role
+      role: 'paciente'
     });
 
     if (signUpError) {
@@ -114,22 +110,13 @@ export default function Registro() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
-      // Crear perfil específico según el rol
-      if (formData.role === 'paciente') {
-        await supabase.from('pacientes').insert({
-          user_id: user.id,
-          cesfam_id: formData.cesfam_id || null,
-          comuna: formData.comuna,
-          direccion: formData.direccion
-        });
-      } else if (formData.role === 'medico') {
-        await supabase.from('medicos').insert({
-          user_id: user.id,
-          cesfam_id: formData.cesfam_id || null,
-          especialidad: formData.especialidad,
-          rut_profesional: formData.rut_profesional
-        });
-      }
+      // Crear perfil de paciente
+      await supabase.from('pacientes').insert({
+        user_id: user.id,
+        cesfam_id: formData.cesfam_id || null,
+        comuna: formData.comuna,
+        direccion: formData.direccion
+      });
     }
 
     setLoading(false);
@@ -202,23 +189,6 @@ export default function Registro() {
                   value={formData.documento}
                   onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
                 />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="role">Tipo de Usuario</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value: "paciente" | "medico" | "admin") => setFormData({ ...formData, role: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="paciente">Paciente</SelectItem>
-                    <SelectItem value="medico">Médico</SelectItem>
-                    <SelectItem value="admin">Administrador</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-2">
@@ -308,40 +278,6 @@ export default function Registro() {
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                 />
               </div>
-
-              {formData.role === 'medico' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="especialidad">Especialidad</Label>
-                    <Select
-                      value={formData.especialidad}
-                      onValueChange={(value) => setFormData({ ...formData, especialidad: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona especialidad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="medicina_general">Medicina General</SelectItem>
-                        <SelectItem value="pediatria">Pediatría</SelectItem>
-                        <SelectItem value="ginecologia">Ginecología</SelectItem>
-                        <SelectItem value="cardiologia">Cardiología</SelectItem>
-                        <SelectItem value="dermatologia">Dermatología</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="rut_profesional">RUT Profesional</Label>
-                    <Input
-                      id="rut_profesional"
-                      value={formData.rut_profesional}
-                      onChange={(e) => setFormData({ ...formData, rut_profesional: e.target.value })}
-                      placeholder="12.345.678-9"
-                      required
-                    />
-                  </div>
-                </>
-              )}
             </div>
 
             {error && (
@@ -351,7 +287,7 @@ export default function Registro() {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Registrando..." : "Registrarse"}
             </Button>
 
