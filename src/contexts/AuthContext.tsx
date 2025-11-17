@@ -1,134 +1,91 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
-export type UserRole = 'paciente' | 'medico' | 'admin';
+export type UserRole = "paciente" | "medico" | "admin";
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any | null;
+  token: string | null;
   userRole: UserRole | null;
-  signUp: (email: string, password: string, metadata: any) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signOut: () => Promise<void>;
   loading: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [user, setUser] = useState<any | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Fetch user role when session changes
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setUserRole(null);
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      }
-      
+    if (token) {
+      fetchUserData();
+    } else {
       setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const fetchUserRole = async (userId: string) => {
-    const { data } = await supabase
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId)
-      .single();
-    
-    if (data) {
-      setUserRole(data.role as UserRole);
     }
-  };
+  }, [token]);
 
-  const signUp = async (email: string, password: string, metadata: any) => {
+  const fetchUserData = async () => {
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
-          emailRedirectTo: `${window.location.origin}/`
-        }
+      const res = await fetch("http://127.0.0.1:8000/api/usuarios/me/", {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (error) {
-        toast.error(error.message);
-        return { error };
-      }
+      if (!res.ok) throw new Error("No autorizado");
 
-      toast.success('¡Registro exitoso! Puedes iniciar sesión ahora.');
-      return { error: null };
-    } catch (error: any) {
-      toast.error('Error al registrarse');
-      return { error };
+      const data = await res.json();
+
+      setUser(data);
+      setUserRole(data.rol);
+    } catch (error) {
+      setToken(null);
+      localStorage.removeItem("token");
+      setUser(null);
+      setUserRole(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password
+      const res = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
       });
 
-      if (error) {
-        toast.error('Credenciales incorrectas');
-        return { error };
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { error: data.detail || "Credenciales incorrectas" };
       }
 
-      toast.success('¡Inicio de sesión exitoso!');
+      const access = data.access;
+
+      localStorage.setItem("token", access);
+      setToken(access);
+
+      await fetchUserData();
+
       return { error: null };
-    } catch (error: any) {
-      toast.error('Error al iniciar sesión');
-      return { error };
+    } catch (error) {
+      return { error: "Error al conectar con el servidor" };
     }
   };
 
-  const signOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      setUser(null);
-      setSession(null);
-      setUserRole(null);
-      toast.success('Sesión cerrada');
-    } catch (error) {
-      toast.error('Error al cerrar sesión');
-    }
+
+  const signOut = () => {
+    setUser(null);
+    setToken(null);
+    setUserRole(null);
+    localStorage.removeItem("token");
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, userRole, signUp, signIn, signOut, loading }}>
+    <AuthContext.Provider value={{ user, token, userRole, loading, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
@@ -136,8 +93,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }
