@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { API_ENDPOINTS } from "@/config/api";
+import { toast } from "sonner";
 
 export type UserRole = "paciente" | "medico" | "admin";
 
@@ -30,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserData = async () => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/usuarios/me/", {
+      const res = await fetch(API_ENDPOINTS.AUTH.ME, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -40,7 +42,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setUser(data);
       setUserRole(data.rol);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error fetching user data:", error);
+      
+      // Show user-friendly error message
+      if (error.message === "Failed to fetch") {
+        toast.error("No se puede conectar con el servidor. Verifica que el backend esté corriendo.");
+      }
+      
       setToken(null);
       localStorage.removeItem("token");
       setUser(null);
@@ -52,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/auth/login/", {
+      const res = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password })
@@ -72,7 +81,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await fetchUserData();
 
       return { error: null };
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      if (error.message === "Failed to fetch") {
+        return { error: "No se puede conectar con el servidor. Asegúrate de que el backend Django esté corriendo en http://127.0.0.1:8000" };
+      }
+      
       return { error: "Error al conectar con el servidor" };
     }
   };
@@ -80,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, userData: any) => {
     try {
-      const res = await fetch("http://127.0.0.1:8000/api/usuarios/register/", {
+      const res = await fetch(API_ENDPOINTS.AUTH.REGISTER, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -104,7 +119,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Auto login después del registro
       return await signIn(email, password);
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Signup error:", error);
+      
+      if (error.message === "Failed to fetch") {
+        return { error: "No se puede conectar con el servidor" };
+      }
+      
       return { error: "Error al conectar con el servidor" };
     }
   };
