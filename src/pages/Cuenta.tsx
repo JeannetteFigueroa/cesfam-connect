@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User as UserIcon, Mail, Phone, CreditCard, Edit2, Save, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,42 +29,22 @@ const Cuenta = () => {
   const loadProfile = async () => {
     if (!user) return;
     
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    
-    if (data) {
-      setProfile(data);
-      setFormData({
-        nombre: data.nombre,
-        apellido: data.apellido,
-        celular: data.celular
-      });
-    }
+    // Use user data from context
+    setProfile(user);
+    setFormData({
+      nombre: user.nombre || '',
+      apellido: user.apellido || '',
+      celular: user.celular || ''
+    });
     setLoading(false);
   };
 
   const handleSave = async () => {
     if (!user) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        nombre: formData.nombre,
-        apellido: formData.apellido,
-        celular: formData.celular
-      })
-      .eq('id', user.id);
-
-    if (error) {
-      toast.error('Error al guardar cambios');
-    } else {
-      toast.success('Cambios guardados exitosamente');
-      setIsEditing(false);
-      loadProfile();
-    }
+    // TODO: Implement update via Django API
+    toast.info('Funcionalidad de actualización en desarrollo');
+    setIsEditing(false);
   };
 
   const getRoleBadge = () => {

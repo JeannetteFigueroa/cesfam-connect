@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Activity } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { api } from "@/lib/api";
 import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
 
 const registroSchema = z.object({
   nombre: z.string().min(2, "El nombre es obligatorio"),
@@ -33,7 +34,8 @@ const comunas = [
 
 export default function Registro() {
   const navigate = useNavigate();
-  const { signUp } = useAuth();
+  const { signUp, token } = useAuth();
+  const { toast } = useToast();
   const [cesfams, setCesfams] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,8 +61,12 @@ export default function Registro() {
   }, []);
 
   const loadCesfams = async () => {
-    const { data } = await supabase.from('cesfams').select('*').order('nombre');
-    if (data) setCesfams(data);
+    try {
+      const data = await api.getCesfams();
+      setCesfams(data);
+    } catch (err) {
+      console.error("Error loading cesfams:", err);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,7 +96,6 @@ export default function Registro() {
 
     setLoading(true);
 
-    // Registrar usuario
     const { error: signUpError } = await signUp(formData.email, formData.password, {
       nombre: formData.nombre,
       apellido: formData.apellido,
@@ -102,204 +107,240 @@ export default function Registro() {
     });
 
     if (signUpError) {
+      setError(signUpError);
       setLoading(false);
       return;
     }
 
-    // Obtener el usuario recién creado
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (user) {
-      // Crear perfil de paciente
-      await supabase.from('pacientes').insert({
-        user_id: user.id,
-        cesfam_id: formData.cesfam_id || null,
-        comuna: formData.comuna,
-        direccion: formData.direccion
-      });
+    // Crear perfil de paciente si tenemos token
+    if (token) {
+      try {
+        await api.createPaciente({
+          cesfam_id: formData.cesfam_id || null,
+          comuna: formData.comuna,
+          direccion: formData.direccion,
+        }, token);
+      } catch (err) {
+        console.error("Error creating patient profile:", err);
+      }
     }
 
+    toast({
+      title: "¡Registro exitoso!",
+      description: "Tu cuenta ha sido creada correctamente.",
+    });
+
     setLoading(false);
-    navigate("/login");
+    navigate("/");
+  };
+
+  const handleChange = (field: string, value: string) => {
+    setFormData({ ...formData, [field]: value });
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <CardTitle>Registro</CardTitle>
-          <CardDescription>Completa tus datos para crear una cuenta</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombre">Nombre</Label>
-                <Input
-                  id="nombre"
-                  required
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                />
-                {errors.nombre && <p className="text-sm text-destructive">{errors.nombre}</p>}
-              </div>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 px-4 py-12">
+      <div className="w-full max-w-2xl">
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary rounded-2xl shadow-glow mb-4">
+            <Activity className="w-10 h-10 text-primary-foreground" />
+          </div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Crear Cuenta</h1>
+          <p className="text-muted-foreground">Completa el formulario para registrarte</p>
+        </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="apellido">Apellido</Label>
-                <Input
-                  id="apellido"
-                  required
-                  value={formData.apellido}
-                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                />
-                {errors.apellido && <p className="text-sm text-destructive">{errors.apellido}</p>}
-              </div>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle>Registro de Paciente</CardTitle>
+            <CardDescription>
+              Todos los campos son obligatorios
+            </CardDescription>
+          </CardHeader>
 
-              <div className="space-y-2">
-                <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
-                <Input
-                  id="fecha_nacimiento"
-                  type="date"
-                  required
-                  value={formData.fecha_nacimiento}
-                  onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Tipo de Documento</Label>
-                <RadioGroup value={tipoDocumento} onValueChange={(value) => setTipoDocumento(value as "rut" | "pasaporte")}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="rut" id="rut" />
-                    <Label htmlFor="rut" className="font-normal">RUT</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="pasaporte" id="pasaporte" />
-                    <Label htmlFor="pasaporte" className="font-normal">Pasaporte</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="documento">{tipoDocumento === "rut" ? "RUT" : "Pasaporte"}</Label>
-                <Input
-                  id="documento"
-                  required
-                  placeholder={tipoDocumento === "rut" ? "12.345.678-9" : "ABC123456"}
-                  value={formData.documento}
-                  onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="cesfam">CESFAM</Label>
-                <Select
-                  value={formData.cesfam_id}
-                  onValueChange={(value) => setFormData({ ...formData, cesfam_id: value })}
-                >
-                  <SelectTrigger id="cesfam">
-                    <SelectValue placeholder="Selecciona tu CESFAM" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cesfams.map((cesfam) => (
-                      <SelectItem key={cesfam.id} value={cesfam.id}>
-                        {cesfam.nombre} - {cesfam.comuna}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="comuna">Comuna</Label>
-                <Select value={formData.comuna} onValueChange={(value) => setFormData({ ...formData, comuna: value })}>
-                  <SelectTrigger id="comuna">
-                    <SelectValue placeholder="Selecciona tu comuna" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {comunas.map((comuna) => (
-                      <SelectItem key={comuna} value={comuna}>{comuna}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="direccion">Dirección</Label>
-                <Input
-                  id="direccion"
-                  required
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="celular">Celular</Label>
-                <Input
-                  id="celular"
-                  type="tel"
-                  required
-                  placeholder="+56912345678"
-                  value={formData.celular}
-                  onChange={(e) => setFormData({ ...formData, celular: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo Personal</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  required
-                  value={formData.confirmPassword}
-                  onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                />
-              </div>
-            </div>
-
+          <CardContent>
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Registrando..." : "Registrarse"}
-            </Button>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Información Personal */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Información Personal</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombre">Nombre</Label>
+                    <Input
+                      id="nombre"
+                      value={formData.nombre}
+                      onChange={(e) => handleChange("nombre", e.target.value)}
+                      placeholder="Juan"
+                    />
+                    {errors.nombre && <p className="text-sm text-destructive">{errors.nombre}</p>}
+                  </div>
 
-            <p className="text-center text-sm text-muted-foreground">
-              ¿Ya tienes cuenta?{" "}
-              <Link to="/login" className="text-primary hover:underline">
-                Inicia sesión
-              </Link>
-            </p>
-          </form>
-        </CardContent>
-      </Card>
+                  <div className="space-y-2">
+                    <Label htmlFor="apellido">Apellido</Label>
+                    <Input
+                      id="apellido"
+                      value={formData.apellido}
+                      onChange={(e) => handleChange("apellido", e.target.value)}
+                      placeholder="Pérez"
+                    />
+                    {errors.apellido && <p className="text-sm text-destructive">{errors.apellido}</p>}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento</Label>
+                  <Input
+                    id="fecha_nacimiento"
+                    type="date"
+                    value={formData.fecha_nacimiento}
+                    onChange={(e) => handleChange("fecha_nacimiento", e.target.value)}
+                  />
+                  {errors.fecha_nacimiento && <p className="text-sm text-destructive">{errors.fecha_nacimiento}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tipo de Documento</Label>
+                  <RadioGroup value={tipoDocumento} onValueChange={(val: any) => setTipoDocumento(val)}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="rut" id="rut" />
+                      <Label htmlFor="rut">RUT</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="pasaporte" id="pasaporte" />
+                      <Label htmlFor="pasaporte">Pasaporte</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="documento">{tipoDocumento === "rut" ? "RUT" : "Pasaporte"}</Label>
+                  <Input
+                    id="documento"
+                    value={formData.documento}
+                    onChange={(e) => handleChange("documento", e.target.value)}
+                    placeholder={tipoDocumento === "rut" ? "12345678-9" : "ABC123456"}
+                  />
+                  {errors.documento && <p className="text-sm text-destructive">{errors.documento}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="celular">Celular</Label>
+                  <Input
+                    id="celular"
+                    value={formData.celular}
+                    onChange={(e) => handleChange("celular", e.target.value)}
+                    placeholder="+56912345678"
+                  />
+                  {errors.celular && <p className="text-sm text-destructive">{errors.celular}</p>}
+                </div>
+              </div>
+
+              {/* Ubicación */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Ubicación</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="comuna">Comuna</Label>
+                  <Select value={formData.comuna} onValueChange={(val) => handleChange("comuna", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tu comuna" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {comunas.map(comuna => (
+                        <SelectItem key={comuna} value={comuna}>{comuna}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.comuna && <p className="text-sm text-destructive">{errors.comuna}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="direccion">Dirección</Label>
+                  <Input
+                    id="direccion"
+                    value={formData.direccion}
+                    onChange={(e) => handleChange("direccion", e.target.value)}
+                    placeholder="Calle 123, Depto 45"
+                  />
+                  {errors.direccion && <p className="text-sm text-destructive">{errors.direccion}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="cesfam_id">CESFAM (Opcional)</Label>
+                  <Select value={formData.cesfam_id} onValueChange={(val) => handleChange("cesfam_id", val)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona tu CESFAM" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cesfams.map(cesfam => (
+                        <SelectItem key={cesfam.id} value={cesfam.id}>{cesfam.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Credenciales */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Credenciales de Acceso</h3>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo Electrónico</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => handleChange("email", e.target.value)}
+                    placeholder="tu@correo.cl"
+                  />
+                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => handleChange("password", e.target.value)}
+                    placeholder="Mínimo 6 caracteres"
+                  />
+                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirmar Contraseña</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleChange("confirmPassword", e.target.value)}
+                    placeholder="Repite tu contraseña"
+                  />
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? "Registrando..." : "Crear Cuenta"}
+              </Button>
+
+              <p className="text-center text-sm text-muted-foreground">
+                ¿Ya tienes cuenta?{" "}
+                <Link to="/login" className="text-primary hover:underline">
+                  Inicia sesión aquí
+                </Link>
+              </p>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

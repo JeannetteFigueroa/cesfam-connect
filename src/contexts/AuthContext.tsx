@@ -8,6 +8,7 @@ interface AuthContextType {
   userRole: UserRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => void;
 }
 
@@ -77,6 +78,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
 
+  const signUp = async (email: string, password: string, userData: any) => {
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/usuarios/register/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          correo: email,
+          password,
+          nombre: userData.nombre,
+          apellido: userData.apellido,
+          tipo_documento: userData.tipo_documento,
+          documento: userData.documento,
+          celular: userData.celular,
+          fecha_nacimiento: userData.fecha_nacimiento,
+          role: userData.role
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        return { error: data.detail || data.error || "Error al registrar" };
+      }
+
+      // Auto login después del registro
+      return await signIn(email, password);
+    } catch (error) {
+      return { error: "Error al conectar con el servidor" };
+    }
+  };
+
   const signOut = () => {
     setUser(null);
     setToken(null);
@@ -85,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, userRole, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, userRole, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

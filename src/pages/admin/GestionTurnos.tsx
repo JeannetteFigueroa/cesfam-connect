@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const HORAS = Array.from({ length: 13 }, (_, i) => `${8 + i}:00`);
@@ -81,30 +80,8 @@ export default function GestionTurnos() {
   }, []);
 
   const loadMedicos = async () => {
-    const { data: medicosData } = await supabase
-      .from('medicos')
-      .select('id, especialidad, user_id')
-      .order('created_at');
-
-    if (medicosData) {
-      const medicosConPerfil = await Promise.all(
-        medicosData.map(async (medico) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('nombre, apellido')
-            .eq('id', medico.user_id)
-            .single();
-
-          return {
-            id: medico.id,
-            nombre: profile?.nombre || 'N/A',
-            apellido: profile?.apellido || '',
-            especialidad: medico.especialidad
-          };
-        })
-      );
-      setMedicos(medicosConPerfil);
-    }
+    // TODO: Load from Django API
+    setMedicos([]);
   };
 
   const loadTurnos = async () => {
