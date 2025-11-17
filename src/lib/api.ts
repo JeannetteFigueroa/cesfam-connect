@@ -1,14 +1,14 @@
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+import { API_ENDPOINTS } from "@/config/api";
 
 export const api = {
   async getCesfams() {
-    const res = await fetch(`${API_BASE_URL}/cesfams/`);
+    const res = await fetch(API_ENDPOINTS.CESFAMS);
     if (!res.ok) throw new Error("Error al cargar CESFAMs");
     return res.json();
   },
 
   async createPaciente(data: any, token: string) {
-    const res = await fetch(`${API_BASE_URL}/pacientes/`, {
+    const res = await fetch(API_ENDPOINTS.PACIENTES, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
