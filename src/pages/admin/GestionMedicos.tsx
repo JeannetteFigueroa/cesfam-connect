@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { UserPlus, Mail, Lock, Stethoscope } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -47,36 +46,9 @@ export default function GestionMedicos() {
   }, []);
 
   const loadData = async () => {
-    const { data: cesfamsData } = await supabase.from('cesfams').select('*').order('nombre');
-    if (cesfamsData) setCesfams(cesfamsData);
-
-    const { data: medicosData } = await supabase
-      .from('medicos')
-      .select(`
-        *,
-        cesfam:cesfams(nombre)
-      `)
-      .order('created_at', { ascending: false });
-    
-    if (medicosData) {
-      // Obtener información de profiles para cada médico
-      const medicosConPerfil = await Promise.all(
-        medicosData.map(async (medico) => {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('nombre, apellido, email:id')
-            .eq('id', medico.user_id)
-            .single();
-          
-          return {
-            ...medico,
-            nombre: profile?.nombre || 'N/A',
-            apellido: profile?.apellido || 'N/A'
-          };
-        })
-      );
-      setMedicos(medicosConPerfil);
-    }
+    // TODO: Load from Django API
+    setCesfams([]);
+    setMedicos([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,67 +67,24 @@ export default function GestionMedicos() {
 
     setLoading(true);
 
-    // Generar contraseña temporal
-    const tempPassword = `Temp${Math.random().toString(36).slice(-8)}!`;
-
     try {
-      // Crear usuario en Supabase Auth
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: tempPassword,
-        options: {
-          data: {
-            nombre: formData.nombre,
-            apellido: formData.apellido,
-            tipo_documento: 'rut',
-            documento: formData.documento,
-            celular: formData.celular,
-            fecha_nacimiento: formData.fecha_nacimiento,
-            role: 'medico'
-          }
-        }
+      // TODO: Create via Django API
+      toast.info('Funcionalidad de gestión de médicos en desarrollo');
+      
+      setFormData({
+        nombre: "",
+        apellido: "",
+        fecha_nacimiento: "",
+        documento: "",
+        celular: "",
+        email: "",
+        especialidad: "",
+        rut_profesional: "",
+        cesfam_id: ""
       });
-
-      if (signUpError) {
-        toast.error(`Error al crear usuario: ${signUpError.message}`);
-        setLoading(false);
-        return;
-      }
-
-      if (authData.user) {
-        // Crear perfil de médico
-        const { error: medicoError } = await supabase.from('medicos').insert({
-          user_id: authData.user.id,
-          especialidad: formData.especialidad,
-          rut_profesional: formData.rut_profesional,
-          cesfam_id: formData.cesfam_id
-        });
-
-        if (medicoError) {
-          toast.error(`Error al crear perfil de médico: ${medicoError.message}`);
-          setLoading(false);
-          return;
-        }
-
-        toast.success(`Médico creado exitosamente. Contraseña temporal: ${tempPassword}`, {
-          duration: 10000
-        });
-
-        setFormData({
-          nombre: "",
-          apellido: "",
-          fecha_nacimiento: "",
-          documento: "",
-          celular: "",
-          email: "",
-          especialidad: "",
-          rut_profesional: "",
-          cesfam_id: ""
-        });
-        
-        setOpen(false);
-        loadData();
-      }
+      
+      setOpen(false);
+      loadData();
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);
     }
