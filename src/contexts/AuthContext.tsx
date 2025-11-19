@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       setUser(data);
-      setUserRole(data.rol);
+      setUserRole(data.role);
     } catch (error: any) {
       console.error("Error fetching user data:", error);
       
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ correo: email, password })
       });
 
       const data = await res.json();
