@@ -71,6 +71,7 @@ export default function GestionMedicos() {
 };
 
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -294,7 +295,7 @@ export default function GestionMedicos() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="documento">Documento</Label>
+                  <Label htmlFor="documento">N° del Trabajador</Label>
                   <Input
                     id="documento"
                     placeholder="Ej: 12345678"
