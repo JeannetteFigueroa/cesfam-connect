@@ -286,6 +286,17 @@ export default function GestionMedicos() {
                   {errors.rut_profesional && <p className="text-sm text-destructive">{errors.rut_profesional}</p>}
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="documento">Documento</Label>
+                  <Input
+                    id="documento"
+                    placeholder="Ej: 12345678"
+                    value={formData.documento}
+                    onChange={(e) => setFormData({ ...formData, documento: e.target.value })}
+                  />
+                  {errors.documento && <p className="text-sm text-destructive">{errors.documento}</p>}
+                </div>
+
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="cesfam">CESFAM</Label>
                   <Select
