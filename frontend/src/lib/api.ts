@@ -36,71 +36,39 @@ export const api = {
   },
 
   async createMedicoWithUser(data: any, token: string) {
-    const endpoint = token
-      ? `${API_ENDPOINTS.MEDICOS}crear_con_usuario/`
-      : `${API_ENDPOINTS.MEDICOS}crear_con_usuario_public_dev/`;
+  // 🔥 SIEMPRE USAR EL MISMO ENDPOINT
+  const endpoint = `${API_ENDPOINTS.MEDICOS}crear_con_usuario/`;
 
-    const headers: any = { "Content-Type": "application/json" };
-    if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: any = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(data),
-    });
+  const res = await fetch(endpoint, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data),
+  });
 
-    if (!res.ok) {
-      let parsed: any = null;
-      try {
-        parsed = await res.json();
-      } catch (e) {
-        try {
-          parsed = await res.text();
-        } catch (e) {
-          parsed = null;
-        }
-      }
-
-      const msg =
-        (parsed && (parsed.detail || parsed.message)) ||
-        (typeof parsed === "string"
-          ? parsed
-          : `Error al crear médico (status ${res.status})`);
-
-      throw { message: msg, status: res.status, body: parsed };
-    }
-
-    return res.json();
-  },
-
-  async getMedicos(token: string) {
+  if (!res.ok) {
+    let parsed: any = null;
     try {
-      const res = await fetch(API_ENDPOINTS.MEDICOS, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!res.ok) {
-        console.warn("getMedicos: response not ok", res.status);
-        return [];
-      }
-
-      const data = await res.json();
-
-      // Si DRF devuelve paginación
-      if (data && typeof data === "object" && Array.isArray(data.results)) {
-        return data.results;
-      }
-
-      // Sin paginación
-      if (Array.isArray(data)) return data;
-
-      return [];
+      parsed = await res.json();
     } catch (e) {
-      console.warn("getMedicos error:", e);
-      return [];
+      try {
+        parsed = await res.text();
+      } catch (e) {
+        parsed = null;
+      }
     }
-  },
-};
 
+    const msg =
+      (parsed && (parsed.detail || parsed.message)) ||
+      (typeof parsed === "string"
+        ? parsed
+        : `Error al crear médico (status ${res.status})`);
+
+    throw { message: msg, status: res.status, body: parsed };
+  }
+
+  return res.json();
+}
+};
