@@ -51,18 +51,25 @@ export default function GestionMedicos() {
   }, []);
 
   const loadData = async () => {
-    try {
-      const data = await api.getCesfams();
-      const list = Array.isArray(data) ? data : (data?.results || []);
-      const normalized = list.map((c: any) => ({ ...c, id: String(c.id) }));
-      setCesfams(normalized.length ? normalized : [{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
-      setMedicos([]);
-    } catch (err) {
-      console.error('Error loading cesfams:', err);
-      setCesfams([{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
-      setMedicos([]);
-    }
-  };
+  try {
+    const token = localStorage.getItem('token') || '';
+    const data = await api.getCesfams();
+    const list = Array.isArray(data) ? data : (data?.results || []);
+    const normalized = list.map((c: any) => ({ ...c, id: String(c.id) }));
+    setCesfams(normalized.length ? normalized : [{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
+
+    // 🔥 CARGAR MEDICOS
+    const medicosRes = await api.getMedicos(token);
+    const medicosList = Array.isArray(medicosRes) ? medicosRes : (medicosRes.results || []);
+    setMedicos(medicosList);
+
+  } catch (err) {
+    console.error('Error loading data:', err);
+    setCesfams([{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
+    setMedicos([]);
+  }
+};
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -337,7 +344,7 @@ export default function GestionMedicos() {
             </form>
           </DialogContent>
         </Dialog>
-        
+
         <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
           <DialogContent>
             <DialogHeader>
@@ -400,13 +407,13 @@ export default function GestionMedicos() {
                 medicos.map((medico) => (
                   <TableRow key={medico.id}>
                     <TableCell className="font-medium">
-                      {medico.nombre} {medico.apellido}
+                      {medico.usuario?.nombre} {medico.usuario?.apellido}
                     </TableCell>
                     <TableCell className="capitalize">
                       {medico.especialidad.replace(/_/g, ' ')}
                     </TableCell>
                     <TableCell>{medico.rut_profesional}</TableCell>
-                    <TableCell>{medico.cesfam?.nombre || 'N/A'}</TableCell>
+                    <TableCell>{medico.cesfam?.nombre || "N/A"}</TableCell>
                   </TableRow>
                 ))
               )}

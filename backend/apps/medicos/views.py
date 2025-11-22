@@ -10,11 +10,12 @@ from rest_framework import status
 from apps.pacientes.models import CESFAM
 from rest_framework.permissions import AllowAny
 from django.conf import settings
-
+from rest_framework.permissions import IsAdminUser
 class MedicoViewSet(viewsets.ModelViewSet):
-    queryset = Medico.objects.select_related('usuario', 'cesfam').all()
+    queryset = Medico.objects.select_related('usuario', 'cesfam')
     serializer_class = MedicoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
+
 
     @action(detail=False, methods=['get'])
     def mi_perfil(self, request):
@@ -111,3 +112,12 @@ class DisponibilidadMedicoViewSet(viewsets.ModelViewSet):
         if self.request.user.role == 'medico':
             return self.queryset.filter(medico__usuario=self.request.user)
         return self.queryset
+
+def get_queryset(self):
+    queryset = Medico.objects.select_related("usuario", "cesfam").all()
+
+    cesfam_id = self.request.query_params.get("cesfam")
+    if cesfam_id:
+        queryset = queryset.filter(cesfam_id=cesfam_id)
+
+    return queryset

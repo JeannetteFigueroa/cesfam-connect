@@ -21,6 +21,18 @@ export const api = {
     }
   },
 
+  async getMedicos(token: string) {
+  const res = await fetch(API_ENDPOINTS.MEDICOS, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) throw new Error("Error al obtener médicos");
+  return res.json();
+}
+,
+
   async createPaciente(data: any, token: string) {
     const res = await fetch(API_ENDPOINTS.PACIENTES, {
       method: "POST",
@@ -35,9 +47,8 @@ export const api = {
     return res.json();
   },
 
-  async createMedicoWithUser(data: any, token: string) {
-  // 🔥 SIEMPRE USAR EL MISMO ENDPOINT
-  const endpoint = `${API_ENDPOINTS.MEDICOS}crear_con_usuario/`;
+ async createMedicoWithUser(data: any, token: string) {
+  const endpoint = `${API_ENDPOINTS.MEDICOS}register/`; // ✅ RUTA REAL
 
   const headers: any = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -52,12 +63,8 @@ export const api = {
     let parsed: any = null;
     try {
       parsed = await res.json();
-    } catch (e) {
-      try {
-        parsed = await res.text();
-      } catch (e) {
-        parsed = null;
-      }
+    } catch {
+      try { parsed = await res.text(); } catch {}
     }
 
     const msg =
@@ -71,4 +78,6 @@ export const api = {
 
   return res.json();
 }
+
 };
+
