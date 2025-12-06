@@ -12,6 +12,22 @@ import { api } from "@/lib/api";
 import { API_ENDPOINTS } from "@/config/api";
 import { z } from "zod";
 
+  function validarRut(rut: string): boolean {
+    rut = rut.replace(/\./g, '').replace(/-/g, '').toUpperCase();
+    if (!/^[0-9]+[0-9K]$/.test(rut)) return false;
+    let cuerpo = rut.slice(0, -1);
+    let dv = rut.slice(-1);
+    let suma = 0;
+    let multiplo = 2;
+    for (let i = cuerpo.length - 1; i >= 0; i--) {
+      suma += parseInt(cuerpo[i]) * multiplo;
+      multiplo = multiplo < 7 ? multiplo + 1 : 2;
+    }
+    let dvEsperado = 11 - (suma % 11);
+    let dvCalc = dvEsperado === 11 ? '0' : dvEsperado === 10 ? 'K' : dvEsperado.toString();
+    return dv === dvCalc;
+  }
+
 const medicoSchema = z.object({
   nombre: z.string().min(2, "El nombre es obligatorio"),
   apellido: z.string().min(2, "El apellido es obligatorio"),
@@ -20,7 +36,7 @@ const medicoSchema = z.object({
   celular: z.string().min(9, "Celular inválido"),
   fecha_nacimiento: z.string().min(1, "Fecha de nacimiento obligatoria"),
   especialidad: z.string().min(1, "Especialidad obligatoria"),
-  rut_profesional: z.string().min(8, "RUT profesional inválido"),
+  rut_profesional: z.string().min(8, "RUT profesional inválido").refine(validarRut, { message: "RUT profesional inválido" }),
   cesfam_id: z.string().min(1, "CESFAM obligatorio")
 });
 
@@ -51,26 +67,24 @@ export default function GestionMedicos() {
   }, []);
 
   const loadData = async () => {
-  try {
-    const token = localStorage.getItem('token') || '';
-    const data = await api.getCesfams();
-    const list = Array.isArray(data) ? data : (data?.results || []);
-    const normalized = list.map((c: any) => ({ ...c, id: String(c.id) }));
-    setCesfams(normalized.length ? normalized : [{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
+    try {
+      const token = localStorage.getItem('token') || '';
+      const data = await api.getCesfams();
+      const list = Array.isArray(data) ? data : (data?.results || []);
+      const normalized = list.map((c: any) => ({ ...c, id: String(c.id) }));
+      setCesfams(normalized.length ? normalized : [{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
 
-    // 🔥 CARGAR MEDICOS
-    const medicosRes = await api.getMedicos(token);
-    const medicosList = Array.isArray(medicosRes) ? medicosRes : (medicosRes.results || []);
-    setMedicos(medicosList);
+      // 🔥 CARGAR MEDICOS
+      const medicosRes = await api.getMedicos(token);
+      const medicosList = Array.isArray(medicosRes) ? medicosRes : (medicosRes.results || []);
+      setMedicos(medicosList);
 
-  } catch (err) {
-    console.error('Error loading data:', err);
-    setCesfams([{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
-    setMedicos([]);
-  }
-};
-
-
+    } catch (err) {
+      console.error('Error loading data:', err);
+      setCesfams([{ id: '', nombre: 'No hay CESFAMs disponibles', comuna: '' }]);
+      setMedicos([]);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,13 +303,21 @@ export default function GestionMedicos() {
                     id="rut_profesional"
                     placeholder="12.345.678-9"
                     value={formData.rut_profesional}
-                    onChange={(e) => setFormData({ ...formData, rut_profesional: e.target.value })}
-                  />
+                    onChange={(e) => {
+                      setFormData({ ...formData, rut_profesional: e.target.value });
+                      // Validación en tiempo real:
+                      const rutValue = e.target.value;
+                      if (rutValue && !validarRut(rutValue)) {
+                        setErrors((prev: any) => ({ ...prev, rut_profesional: "RUT profesional inválido" }));
+                      } else {
+                        setErrors((prev: any) => ({ ...prev, rut_profesional: undefined }));
+                      }
+                    }}                  />
                   {errors.rut_profesional && <p className="text-sm text-destructive">{errors.rut_profesional}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="documento">N° del Trabajador</Label>
+                  <Label htmlFor="documento">N° del Colegio Medico</Label>
                   <Input
                     id="documento"
                     placeholder="Ej: 12345678"
