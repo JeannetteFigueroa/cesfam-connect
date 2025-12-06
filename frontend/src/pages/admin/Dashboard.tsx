@@ -1,6 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { TrendingUp, Users, Activity, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 const dataPacientesPorArea = [
   { area: "Consulta General", pacientes: 245 },
@@ -25,6 +27,22 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accen
 export default function Dashboard() {
   const totalPacientes = dataPacientesPorArea.reduce((sum, item) => sum + item.pacientes, 0);
   const pacientesEsteMes = dataPacientesPorMes[dataPacientesPorMes.length - 1].pacientes;
+  const [totalMedicos, setTotalMedicos] = useState<number>(0);
+
+    useEffect(() => {
+    const fetchMedicos = async () => {
+      try {
+        const token = localStorage.getItem('token') || '';
+        const medicosRes = await api.getMedicos(token);
+        const medicosList = Array.isArray(medicosRes) ? medicosRes : (medicosRes.results || []);
+        setTotalMedicos(medicosList.length);
+      } catch (err) {
+        setTotalMedicos(0);
+      }
+    };
+    fetchMedicos();
+  }, []);
+
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -62,7 +80,7 @@ export default function Dashboard() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{totalMedicos}</div>
             <p className="text-xs text-muted-foreground">En todas las áreas</p>
           </CardContent>
         </Card>
