@@ -1,79 +1,46 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Users, Activity, Calendar } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { TrendingUp, Users, Activity, Calendar, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 
-const dataPacientesPorArea = [
-  { area: "Consulta General", pacientes: 245 },
-  { area: "Control Crónico", pacientes: 180 },
-  { area: "Urgencia", pacientes: 95 },
-  { area: "Vacunatorio", pacientes: 120 },
-  { area: "Dental", pacientes: 85 },
-  { area: "Kinesiología", pacientes: 60 },
-];
-
-const dataPacientesPorMes = [
-  { mes: "Jul", pacientes: 580 },
-  { mes: "Ago", pacientes: 620 },
-  { mes: "Sep", pacientes: 595 },
-  { mes: "Oct", pacientes: 680 },
-  { mes: "Nov", pacientes: 710 },
-  { mes: "Dic", pacientes: 645 },
-];
-
-const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--accent))', '#8884d8', '#82ca9d', '#ffc658'];
-
 export default function Dashboard() {
-  const totalPacientes = dataPacientesPorArea.reduce((sum, item) => sum + item.pacientes, 0);
-  const pacientesEsteMes = dataPacientesPorMes[dataPacientesPorMes.length - 1].pacientes;
-  const [totalMedicos, setTotalMedicos] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+  const [totalMedicos, setTotalMedicos] = useState(0);
+  const [totalCitas, setTotalCitas] = useState(0);
 
-    useEffect(() => {
-    const fetchMedicos = async () => {
+  useEffect(() => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('token') || '';
         const medicosRes = await api.getMedicos(token);
         const medicosList = Array.isArray(medicosRes) ? medicosRes : (medicosRes.results || []);
         setTotalMedicos(medicosList.length);
+
+        try {
+          const citasRes = await api.getCitas(token);
+          const citasList = Array.isArray(citasRes) ? citasRes : (citasRes.results || []);
+          setTotalCitas(citasList.length);
+        } catch { setTotalCitas(0); }
       } catch (err) {
-        setTotalMedicos(0);
-      }
+        console.error('Error fetching dashboard data:', err);
+      } finally { setLoading(false); }
     };
-    fetchMedicos();
+    fetchData();
   }, []);
 
+  if (loading) {
+    return <div className="container mx-auto p-6 flex justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+  }
 
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Panel de Administración</h1>
-        <p className="text-muted-foreground">Estadísticas y reportes del CESFAM</p>
+        <p className="text-muted-foreground">Estadísticas del CESFAM</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Pacientes</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalPacientes}</div>
-            <p className="text-xs text-muted-foreground">Últimos 6 meses</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Este Mes</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{pacientesEsteMes}</div>
-            <p className="text-xs text-muted-foreground">+12% respecto al mes anterior</p>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Médicos Activos</CardTitle>
@@ -87,64 +54,49 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Área Más Activa</CardTitle>
+            <CardTitle className="text-sm font-medium">Citas Registradas</CardTitle>
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCitas}</div>
+            <p className="text-xs text-muted-foreground">Total en el sistema</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Usuarios</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">-</div>
+            <p className="text-xs text-muted-foreground">Conectar endpoint</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Estado</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Consulta</div>
-            <p className="text-xs text-muted-foreground">245 pacientes</p>
+            <div className="text-2xl font-bold text-success">Activo</div>
+            <p className="text-xs text-muted-foreground">Sistema operativo</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Pacientes por Área</CardTitle>
-            <CardDescription>Distribución de atenciones por especialidad</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={dataPacientesPorArea}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ area, percent }) => `${area}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="pacientes"
-                >
-                  {dataPacientesPorArea.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Pacientes por Mes</CardTitle>
-            <CardDescription>Evolución de atenciones en los últimos 6 meses</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={dataPacientesPorMes}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="pacientes" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Información</CardTitle>
+          <CardDescription>Los datos se cargan desde tu backend Django</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-muted-foreground">
+            El dashboard muestra datos reales obtenidos de la API. Agrega más endpoints en tu backend para ver estadísticas adicionales.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
