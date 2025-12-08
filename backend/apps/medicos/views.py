@@ -16,6 +16,12 @@ class MedicoViewSet(viewsets.ModelViewSet):
     serializer_class = MedicoSerializer
     permission_classes = [IsAdminUser]
 
+    def get_queryset(self):
+        queryset = Medico.objects.select_related("usuario", "cesfam").all()
+        cesfam_id = self.request.query_params.get("cesfam")
+        if cesfam_id:
+            queryset = queryset.filter(cesfam_id=cesfam_id)
+        return queryset
 
     @action(detail=False, methods=['get'])
     def mi_perfil(self, request):
@@ -112,12 +118,3 @@ class DisponibilidadMedicoViewSet(viewsets.ModelViewSet):
         if self.request.user.role == 'medico':
             return self.queryset.filter(medico__usuario=self.request.user)
         return self.queryset
-
-def get_queryset(self):
-    queryset = Medico.objects.select_related("usuario", "cesfam").all()
-
-    cesfam_id = self.request.query_params.get("cesfam")
-    if cesfam_id:
-        queryset = queryset.filter(cesfam_id=cesfam_id)
-
-    return queryset
