@@ -26,13 +26,13 @@ interface SolicitudCambio {
 }
 
 const diasSemana = [
-  { id: 0, label: "Domingo" },
   { id: 1, label: "Lunes" },
   { id: 2, label: "Martes" },
   { id: 3, label: "Miércoles" },
   { id: 4, label: "Jueves" },
   { id: 5, label: "Viernes" },
   { id: 6, label: "Sábado" },
+  { id: 7, label: "Domingo" },
 ];
 
 const horariosOpciones = [
@@ -109,33 +109,55 @@ export default function Disponibilidad() {
     setSaving(true);
     try {
       const token = localStorage.getItem('token') || '';
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+
       const horario = horariosOpciones.find(h => h.label === horarioSeleccionado);
 
       if (!horario) {
         throw new Error("Horario no válido");
       }
 
-      // Crear disponibilidad para cada día seleccionado
-      for (const dia of diasSeleccionados) {
-        await api.saveDisponibilidad({
-          dia_semana: dia,
-          hora_inicio: horario.inicio,
-          hora_fin: horario.fin,
-          activo: true
-        }, token);
-      }
+      // Verificar si ya existe disponibilidad para estos días y actualizar o crear
+      const promises = diasSeleccionados.map(async (dia) => {
+        // Buscar si ya existe disponibilidad para este día
+        const existente = disponibilidades.find(d => d.dia_semana === dia && d.activo);
+        
+        if (existente) {
+          // Actualizar disponibilidad existente
+          await api.updateDisponibilidad(existente.id, {
+            hora_inicio: horario.inicio,
+            hora_fin: horario.fin,
+            activo: true
+          }, token);
+        } else {
+          // Crear nueva disponibilidad
+          await api.saveDisponibilidad({
+            dia_semana: dia,
+            hora_inicio: horario.inicio,
+            hora_fin: horario.fin,
+            activo: true
+          }, token);
+        }
+      });
+
+      await Promise.all(promises);
 
       toast({
         title: "Disponibilidad guardada",
         description: "Tu disponibilidad ha sido actualizada correctamente"
       });
 
+      // Limpiar formulario
+      setHorarioSeleccionado("");
       await loadData();
     } catch (err: any) {
       console.error('Error saving disponibilidad:', err);
+      const errorMessage = err?.response?.data?.detail || err?.message || "No se pudo guardar la disponibilidad";
       toast({
         title: "Error",
-        description: err.message || "No se pudo guardar la disponibilidad",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -266,7 +288,7 @@ export default function Disponibilidad() {
             <CardDescription>Selecciona los días que puedes trabajar</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {diasSemana.slice(1, 7).map((dia) => (
+            {diasSemana.map((dia) => (
               <div key={dia.id} className="flex items-center space-x-2">
                 <Checkbox
                   id={`dia-${dia.id}`}

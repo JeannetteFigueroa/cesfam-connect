@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar, ChevronLeft, ChevronRight, Loader2, Download, Save } from "lucide-react";
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useToast } from "@/hooks/use-toast";
@@ -61,7 +63,14 @@ function CeldaTurno({ dia, hora, turno }: { dia: number; hora: string; turno?: T
   );
 }
 
+interface CESFAM {
+  id: string;
+  nombre: string;
+}
+
 export default function GestionTurnos() {
+  const [cesfam, setCesfam] = useState('');
+  const [cesfams, setCesfams] = useState<CESFAM[]>([]);
   const [medicos, setMedicos] = useState<Medico[]>([]);
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,18 +79,61 @@ export default function GestionTurnos() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadCesfams();
+  }, []);
+
+  useEffect(() => {
+    if (cesfam) {
+      loadData();
+    } else {
+      setMedicos([]);
+      setTurnos([]);
+    }
+  }, [cesfam]);
+
+  const loadCesfams = async () => {
+    try {
+      const cesfamsData = await api.getCesfams();
+      setCesfams(Array.isArray(cesfamsData) ? cesfamsData : []);
+    } catch (err) {
+      console.error('Error loading CESFAMs:', err);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los CESFAMs",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadData = async () => {
+    if (!cesfam) return;
+    
     try {
       const token = localStorage.getItem('token') || '';
-      const medicosRes = await api.getMedicos(token);
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+      
+      const medicosRes = await api.getMedicosByCesfam(cesfam, token);
       setMedicos(Array.isArray(medicosRes) ? medicosRes : (medicosRes?.results || []));
+      
+      // Cargar turnos del CESFAM (filtrar por médicos del CESFAM)
       const turnosRes = await api.getTurnos(token);
-      setTurnos(Array.isArray(turnosRes) ? turnosRes : (turnosRes?.results || []));
-    } catch (err) {
+      const turnosList = Array.isArray(turnosRes) ? turnosRes : (turnosRes?.results || []);
+      const medicosIds = medicos.map(m => m.id);
+      const turnosFiltrados = turnosList.filter((t: Turno) => medicosIds.includes(t.medico_id));
+      setTurnos(turnosFiltrados);
+    } catch (err: any) {
       console.error('Error loading data:', err);
-    } finally { setLoading(false); }
+      toast({
+        title: "Error",
+        description: err.message || "No se pudieron cargar los datos",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -127,10 +179,32 @@ export default function GestionTurnos() {
   };
 
   const handleSave = async () => {
+    if (!cesfam) {
+      toast({
+        title: "Selecciona un CESFAM",
+        description: "Debes seleccionar un CESFAM antes de guardar turnos",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSaving(true);
     try {
       const token = localStorage.getItem('token') || '';
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+      
       const newTurnos = turnos.filter(t => t.id.startsWith('temp-'));
+      if (newTurnos.length === 0) {
+        toast({
+          title: "Sin turnos nuevos",
+          description: "No hay turnos nuevos para guardar",
+          variant: "default"
+        });
+        return;
+      }
+
       for (const turno of newTurnos) {
         await api.createTurno({
           medico_id: turno.medico_id,
@@ -139,15 +213,26 @@ export default function GestionTurnos() {
           hora_fin: turno.hora_fin,
           cargo: turno.cargo,
           area: turno.area,
-          tipo_turno: 'regular',
-          status: 'activo'
+          tipo_turno: 'diurno',
+          status: 'programado'
         }, token);
       }
-      toast({ title: "Turnos guardados correctamente" });
+      
+      toast({ 
+        title: "Turnos guardados correctamente",
+        description: `Se guardaron ${newTurnos.length} turno(s)`
+      });
       await loadData();
     } catch (err: any) {
-      toast({ title: "Error al guardar", description: err.message, variant: "destructive" });
-    } finally { setSaving(false); }
+      const errorMessage = err?.response?.data?.detail || err?.message || "Error al guardar turnos";
+      toast({ 
+        title: "Error al guardar", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
+    } finally { 
+      setSaving(false); 
+    }
   };
 
   const getTurnoParaSlot = (dia: number, hora: string) => {
@@ -167,26 +252,57 @@ export default function GestionTurnos() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Gestión de Turnos</h1>
-            <p className="text-muted-foreground">Arrastra médicos para asignar turnos</p>
+            <p className="text-muted-foreground">Selecciona un CESFAM y arrastra médicos para asignar turnos</p>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleSave} disabled={saving || !cesfam}>
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Guardar Turnos
           </Button>
         </div>
 
-        <div className="grid lg:grid-cols-[300px,1fr] gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Médicos Disponibles</CardTitle>
-              <CardDescription>Arrastra para asignar</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {medicos.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-8">No hay médicos</p>
-              ) : medicos.map((m) => <MedicoCard key={m.id} medico={m} />)}
-            </CardContent>
-          </Card>
+        {/* Selector de CESFAM */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Seleccionar CESFAM</CardTitle>
+            <CardDescription>Elige el CESFAM para gestionar turnos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Label>CESFAM</Label>
+                <Select value={cesfam} onValueChange={(value) => {
+                  setCesfam(value);
+                  setTurnos([]);
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un CESFAM" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cesfams.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {cesfam ? (
+          <div className="grid lg:grid-cols-[300px,1fr] gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Médicos Disponibles</CardTitle>
+                <CardDescription>Arrastra para asignar</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {medicos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">No hay médicos en este CESFAM</p>
+                ) : medicos.map((m) => <MedicoCard key={m.id} medico={m} />)}
+              </CardContent>
+            </Card>
 
           <Card>
             <CardHeader>
@@ -217,6 +333,13 @@ export default function GestionTurnos() {
             </CardContent>
           </Card>
         </div>
+        ) : (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-muted-foreground">Selecciona un CESFAM para comenzar a gestionar turnos</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
       <DragOverlay>
         {activeMedico && (

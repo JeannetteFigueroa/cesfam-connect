@@ -118,3 +118,28 @@ class DisponibilidadMedicoViewSet(viewsets.ModelViewSet):
         if self.request.user.role == 'medico':
             return self.queryset.filter(medico__usuario=self.request.user)
         return self.queryset
+
+    def perform_create(self, serializer):
+        # Asociar automáticamente al médico autenticado
+        if self.request.user.role == 'medico':
+            try:
+                medico = Medico.objects.get(usuario=self.request.user)
+                serializer.save(medico=medico)
+            except Medico.DoesNotExist:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("No eres médico")
+        else:
+            serializer.save()
+
+    @action(detail=False, methods=['get'], url_path='mi_disponibilidad')
+    def mi_disponibilidad(self, request):
+        if request.user.role != 'medico':
+            return Response({'error': 'Solo médicos pueden ver su disponibilidad'}, status=403)
+        
+        try:
+            medico = Medico.objects.get(usuario=request.user)
+            disponibilidades = self.queryset.filter(medico=medico, activo=True)
+            serializer = self.get_serializer(disponibilidades, many=True)
+            return Response(serializer.data)
+        except Medico.DoesNotExist:
+            return Response({'error': 'No eres médico'}, status=404)

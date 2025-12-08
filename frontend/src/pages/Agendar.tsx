@@ -24,7 +24,14 @@ interface Medico {
   };
 }
 
+interface CESFAM {
+  id: string;
+  nombre: string;
+  direccion?: string;
+}
+
 const Agendar = () => {
+  const [cesfam, setCesfam] = useState('');
   const [date, setDate] = useState<Date>();
   const [especialidad, setEspecialidad] = useState('');
   const [medico, setMedico] = useState('');
@@ -34,6 +41,7 @@ const Agendar = () => {
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   
+  const [cesfams, setCesfams] = useState<CESFAM[]>([]);
   const [medicos, setMedicos] = useState<Medico[]>([]);
   const [especialidades, setEspecialidades] = useState<string[]>([]);
   const [horariosDisponibles, setHorariosDisponibles] = useState<string[]>([]);
@@ -42,30 +50,35 @@ const Agendar = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadMedicos();
+    loadCesfams();
   }, []);
+
+  useEffect(() => {
+    if (cesfam) {
+      loadMedicos();
+    } else {
+      setMedicos([]);
+      setEspecialidades([]);
+    }
+  }, [cesfam]);
 
   useEffect(() => {
     if (medico && date) {
       loadHorarios();
+    } else {
+      setHorariosDisponibles([]);
     }
   }, [medico, date]);
 
-  const loadMedicos = async () => {
+  const loadCesfams = async () => {
     try {
-      const token = localStorage.getItem('token') || '';
-      const data = await api.getMedicos(token);
-      const list = Array.isArray(data) ? data : (data?.results || []);
-      setMedicos(list);
-      
-      // Extraer especialidades únicas
-      const specs = [...new Set(list.map((m: Medico) => m.especialidad))];
-      setEspecialidades(specs);
+      const cesfamsData = await api.getCesfams();
+      setCesfams(Array.isArray(cesfamsData) ? cesfamsData : []);
     } catch (err) {
-      console.error('Error loading médicos:', err);
+      console.error('Error loading CESFAMs:', err);
       toast({
         title: "Error",
-        description: "No se pudieron cargar los médicos",
+        description: "No se pudieron cargar los CESFAMs",
         variant: "destructive"
       });
     } finally {
@@ -73,21 +86,72 @@ const Agendar = () => {
     }
   };
 
-  const loadHorarios = async () => {
+  const loadMedicos = async () => {
     try {
       const token = localStorage.getItem('token') || '';
-      const fechaStr = date ? format(date, 'yyyy-MM-dd') : '';
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+      const data = await api.getMedicosByCesfam(cesfam, token);
+      const list = Array.isArray(data) ? data : (data?.results || []);
+      setMedicos(list);
+      
+      // Extraer especialidades únicas
+      const specs = [...new Set(list.map((m: Medico) => m.especialidad))];
+      setEspecialidades(specs);
+      
+      // Limpiar selecciones si no hay médicos
+      if (list.length === 0) {
+        setEspecialidad('');
+        setMedico('');
+        toast({
+          title: "Sin médicos",
+          description: "No hay médicos disponibles en este CESFAM",
+          variant: "default"
+        });
+      }
+    } catch (err: any) {
+      console.error('Error loading médicos:', err);
+      toast({
+        title: "Error",
+        description: err.message || "No se pudieron cargar los médicos",
+        variant: "destructive"
+      });
+      setMedicos([]);
+      setEspecialidades([]);
+    }
+  };
+
+  const loadHorarios = async () => {
+    if (!medico || !date) {
+      setHorariosDisponibles([]);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token') || '';
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+      const fechaStr = format(date, 'yyyy-MM-dd');
       const horarios = await api.getHorariosDisponibles(medico, fechaStr, token);
-      setHorariosDisponibles(Array.isArray(horarios) ? horarios : [
-        '08:00', '09:00', '10:00', '11:00', '12:00',
-        '14:00', '15:00', '16:00', '17:00'
-      ]);
-    } catch (err) {
-      // Fallback a horarios estándar
-      setHorariosDisponibles([
-        '08:00', '09:00', '10:00', '11:00', '12:00',
-        '14:00', '15:00', '16:00', '17:00'
-      ]);
+      setHorariosDisponibles(Array.isArray(horarios) ? horarios : []);
+      
+      if (horarios.length === 0) {
+        toast({
+          title: "Sin horarios disponibles",
+          description: "No hay horarios disponibles para este médico en la fecha seleccionada",
+          variant: "default"
+        });
+      }
+    } catch (err: any) {
+      console.error('Error loading horarios:', err);
+      toast({
+        title: "Error",
+        description: err.message || "No se pudieron cargar los horarios disponibles",
+        variant: "destructive"
+      });
+      setHorariosDisponibles([]);
     }
   };
 
@@ -111,10 +175,10 @@ const Agendar = () => {
   };
 
   const handleAgendar = async () => {
-    if (!date || !especialidad || !medico || !hora) {
+    if (!cesfam || !date || !especialidad || !medico || !hora) {
       toast({
         title: "Faltan datos",
-        description: "Por favor completa todos los campos",
+        description: "Por favor completa todos los campos requeridos",
         variant: "destructive"
       });
       return;
@@ -124,6 +188,10 @@ const Agendar = () => {
 
     try {
       const token = localStorage.getItem('token') || '';
+      if (!token) {
+        throw new Error("No hay token de autenticación");
+      }
+      
       const medicoSeleccionado = medicos.find(m => m.id === medico);
       
       const citaData = {
@@ -131,7 +199,7 @@ const Agendar = () => {
         fecha: format(date, 'yyyy-MM-dd'),
         hora: hora,
         motivo: motivo || 'Consulta médica',
-        status: 'pendiente'
+        status: 'agendada'
       };
 
       const result = await api.createCita(citaData, token);
@@ -151,9 +219,10 @@ const Agendar = () => {
       });
     } catch (err: any) {
       console.error('Error al crear cita:', err);
+      const errorMessage = err?.response?.data?.detail || err?.message || "No se pudo crear la cita";
       toast({
         title: "Error al agendar",
-        description: err.message || "No se pudo crear la cita",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -215,6 +284,7 @@ const Agendar = () => {
                 <Button onClick={() => {
                   setAgendado(false);
                   setCitaCreada(null);
+                  setCesfam('');
                   setEspecialidad('');
                   setMedico('');
                   setHora('');
@@ -250,29 +320,57 @@ const Agendar = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Especialidad */}
+            {/* CESFAM */}
             <div className="space-y-2">
-              <Label>Especialidad Médica</Label>
-              <Select value={especialidad} onValueChange={(value) => {
-                setEspecialidad(value);
+              <Label>CESFAM</Label>
+              <Select value={cesfam} onValueChange={(value) => {
+                setCesfam(value);
+                setEspecialidad('');
                 setMedico('');
                 setHora('');
+                setDate(undefined);
               }}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona una especialidad" />
+                  <SelectValue placeholder="Selecciona un CESFAM" />
                 </SelectTrigger>
                 <SelectContent>
-                  {especialidades.map((esp) => (
-                    <SelectItem key={esp} value={esp}>
-                      {formatEspecialidad(esp)}
+                  {cesfams.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {especialidades.length === 0 && (
-                <p className="text-sm text-muted-foreground">No hay especialidades disponibles</p>
+              {cesfams.length === 0 && (
+                <p className="text-sm text-muted-foreground">No hay CESFAMs disponibles</p>
               )}
             </div>
+
+            {/* Especialidad */}
+            {cesfam && (
+              <div className="space-y-2">
+                <Label>Especialidad Médica</Label>
+                <Select value={especialidad} onValueChange={(value) => {
+                  setEspecialidad(value);
+                  setMedico('');
+                  setHora('');
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona una especialidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {especialidades.map((esp) => (
+                      <SelectItem key={esp} value={esp}>
+                        {formatEspecialidad(esp)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {especialidades.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No hay especialidades disponibles en este CESFAM</p>
+                )}
+              </div>
+            )}
 
             {/* Médico */}
             {especialidad && (
@@ -369,7 +467,7 @@ const Agendar = () => {
             <Button
               onClick={handleAgendar}
               className="w-full gradient-primary hover:opacity-90 h-12 text-lg"
-              disabled={!date || !especialidad || !medico || !hora || loading}
+              disabled={!cesfam || !date || !especialidad || !medico || !hora || loading}
             >
               {loading ? (
                 <>

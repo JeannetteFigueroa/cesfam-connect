@@ -26,24 +26,36 @@ export const api = {
   // ========================
   // MEDICOS
   // ========================
-  async getMedicos(token: string) {
-    const res = await fetch(API_ENDPOINTS.MEDICOS, {
+  async getMedicos(token: string, cesfamId?: string) {
+    let url = API_ENDPOINTS.MEDICOS;
+    if (cesfamId) {
+      url += `?cesfam=${cesfamId}`;
+    }
+    const res = await fetch(url, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) throw new Error("Error al obtener médicos");
-    return res.json();
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || "Error al obtener médicos");
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data?.results || []);
   },
 
   async getMedicosByCesfam(cesfamId: string, token: string) {
-    const res = await fetch(`${API_ENDPOINTS.MEDICOS}?cesfam_id=${cesfamId}`, {
+    const res = await fetch(`${API_ENDPOINTS.MEDICOS}?cesfam=${cesfamId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) throw new Error("Error al obtener médicos del CESFAM");
-    return res.json();
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || "Error al obtener médicos del CESFAM");
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data?.results || []);
   },
 
   async getMedicoProfile(token: string) {
@@ -226,17 +238,20 @@ export const api = {
   },
 
   async getMiDisponibilidad(token: string) {
-    const res = await fetch(`${API_BASE_URL}/api/disponibilidad/mi_disponibilidad/`, {
+    const res = await fetch(`${API_BASE_URL}/api/medicos/disponibilidad/mi_disponibilidad/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) throw new Error("Error al obtener mi disponibilidad");
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || "Error al obtener mi disponibilidad");
+    }
     return res.json();
   },
 
   async saveDisponibilidad(data: any, token: string) {
-    const res = await fetch(`${API_BASE_URL}/api/disponibilidad/`, {
+    const res = await fetch(`${API_BASE_URL}/api/medicos/disponibilidad/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -246,13 +261,13 @@ export const api = {
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || "Error al guardar disponibilidad");
+      throw new Error(errorData.detail || errorData.error || "Error al guardar disponibilidad");
     }
     return res.json();
   },
 
   async updateDisponibilidad(id: string, data: any, token: string) {
-    const res = await fetch(`${API_BASE_URL}/api/disponibilidad/${id}/`, {
+    const res = await fetch(`${API_BASE_URL}/api/medicos/disponibilidad/${id}/`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -260,18 +275,24 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
-    if (!res.ok) throw new Error("Error al actualizar disponibilidad");
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || "Error al actualizar disponibilidad");
+    }
     return res.json();
   },
 
   async deleteDisponibilidad(id: string, token: string) {
-    const res = await fetch(`${API_BASE_URL}/api/disponibilidad/${id}/`, {
+    const res = await fetch(`${API_BASE_URL}/api/medicos/disponibilidad/${id}/`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) throw new Error("Error al eliminar disponibilidad");
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || "Error al eliminar disponibilidad");
+    }
     return true;
   },
 
@@ -279,17 +300,21 @@ export const api = {
   // SOLICITUDES CAMBIO TURNO
   // ========================
   async getSolicitudesCambio(token: string) {
-    const res = await fetch(`${API_BASE_URL}/api/solicitudes-cambio/`, {
+    const res = await fetch(`${API_BASE_URL}/api/turnos/solicitudes/`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) throw new Error("Error al obtener solicitudes");
-    return res.json();
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || "Error al obtener solicitudes");
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data?.results || []);
   },
 
   async createSolicitudCambio(data: any, token: string) {
-    const res = await fetch(`${API_BASE_URL}/api/solicitudes-cambio/`, {
+    const res = await fetch(`${API_BASE_URL}/api/turnos/solicitudes/`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -299,7 +324,7 @@ export const api = {
     });
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.detail || "Error al crear solicitud");
+      throw new Error(errorData.detail || errorData.error || "Error al crear solicitud");
     }
     return res.json();
   },
@@ -362,17 +387,11 @@ export const api = {
       },
     });
     if (!res.ok) {
-      // Fallback si no existe el endpoint
-      return [
-        { id: 'medicina_general', nombre: 'Medicina General' },
-        { id: 'cardiologia', nombre: 'Cardiología' },
-        { id: 'pediatria', nombre: 'Pediatría' },
-        { id: 'ginecologia', nombre: 'Ginecología' },
-        { id: 'traumatologia', nombre: 'Traumatología' },
-        { id: 'dermatologia', nombre: 'Dermatología' },
-      ];
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || "Error al obtener especialidades");
     }
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : (data?.results || []);
   },
 
   // ========================
@@ -380,7 +399,7 @@ export const api = {
   // ========================
   async getHorariosDisponibles(medicoId: string, fecha: string, token: string) {
     const res = await fetch(
-      `${API_BASE_URL}/api/horarios-disponibles/?medico_id=${medicoId}&fecha=${fecha}`,
+      `${API_BASE_URL}/api/citas/horarios-disponibles/?medico_id=${medicoId}&fecha=${fecha}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -388,9 +407,10 @@ export const api = {
       }
     );
     if (!res.ok) {
-      // Fallback: horarios estándar
-      return ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00'];
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.detail || "Error al obtener horarios disponibles");
     }
-    return res.json();
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
   },
 };
