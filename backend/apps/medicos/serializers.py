@@ -22,4 +22,7 @@ class DisponibilidadMedicoSerializer(serializers.ModelSerializer):
     class Meta:
         model = DisponibilidadMedico
         fields = '__all__'
+        extra_kwargs = {
+            'medico': {'required': False, 'allow_null': True}  # No requerido en el request, se asigna en perform_create
+        }
 

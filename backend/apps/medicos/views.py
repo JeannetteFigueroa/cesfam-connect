@@ -151,10 +151,29 @@ class DisponibilidadMedicoViewSet(viewsets.ModelViewSet):
             # Si no tiene perfil de médico, verificar si es admin
             if hasattr(self.request.user, 'role') and self.request.user.role == 'admin':
                 # Administradores pueden crear disponibilidad para cualquier médico
+                # Si no viene medico_id en los datos, no se puede crear
+                medico_id = self.request.data.get('medico_id') or self.request.data.get('medico')
+                if not medico_id:
+                    from rest_framework.exceptions import ValidationError
+                    raise ValidationError("Los administradores deben especificar el médico (medico_id)")
                 serializer.save()
             else:
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied("No tienes permiso para crear disponibilidad. Debes ser médico o administrador.")
+    
+    def create(self, request, *args, **kwargs):
+        """
+        Sobrescribir create para agregar mejor manejo de errores.
+        """
+        try:
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            # Log del error para debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error al crear disponibilidad: {str(e)}")
+            logger.error(f"Usuario: {request.user.id}, Role: {getattr(request.user, 'role', 'N/A')}")
+            raise
 
     def perform_update(self, serializer):
         """
