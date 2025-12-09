@@ -18,7 +18,7 @@ interface Medico {
   especialidad: string;
   nombre?: string;
   apellido?: string;
-  user?: {
+  usuario?: {
     nombre: string;
     apellido: string;
   };
@@ -94,14 +94,15 @@ const Agendar = () => {
       }
       const data = await api.getMedicosByCesfam(cesfam, token);
       const list = Array.isArray(data) ? data : (data?.results || []);
-      setMedicos(list);
+      const medList = list as Medico[];
+      setMedicos(medList);
       
       // Extraer especialidades únicas
-      const specs = [...new Set(list.map((m: Medico) => m.especialidad))];
+      const specs = Array.from(new Set(medList.map((m) => m.especialidad))) as string[];
       setEspecialidades(specs);
       
       // Limpiar selecciones si no hay médicos
-      if (list.length === 0) {
+      if (medList.length === 0) {
         setEspecialidad('');
         setMedico('');
         toast({
@@ -134,6 +135,7 @@ const Agendar = () => {
         throw new Error("No hay token de autenticación");
       }
       const fechaStr = format(date, 'yyyy-MM-dd');
+      console.log('Fecha enviada a la API:', fechaStr); // <-- Depuración
       const horarios = await api.getHorariosDisponibles(medico, fechaStr, token);
       setHorariosDisponibles(Array.isArray(horarios) ? horarios : []);
       
@@ -161,13 +163,13 @@ const Agendar = () => {
   };
 
   const getMedicoNombre = (med: Medico) => {
-    if (med.user) {
-      return `Dr(a). ${med.user.nombre} ${med.user.apellido}`;
+    if (med.usuario) {
+      return `Dr(a). ${med.usuario.nombre} ${med.usuario.apellido}`;
     }
     if (med.nombre && med.apellido) {
       return `Dr(a). ${med.nombre} ${med.apellido}`;
     }
-    return `Médico ${med.id}`;
+    return `Médico ${med.nombre || med.id}`;
   };
 
   const formatEspecialidad = (esp: string) => {
@@ -196,11 +198,12 @@ const Agendar = () => {
       
       const citaData = {
         medico_id: medico,
-        fecha: format(date, 'yyyy-MM-dd'),
+        fecha: date ? format(date, 'yyyy-MM-dd') : '',
         hora: hora,
         motivo: motivo || 'Consulta médica',
         status: 'agendada'
       };
+      console.log('Creando cita con datos:', citaData);
 
       const result = await api.createCita(citaData, token);
       

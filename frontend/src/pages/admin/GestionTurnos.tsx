@@ -8,6 +8,9 @@ import { Calendar, ChevronLeft, ChevronRight, Loader2, Download, Save } from "lu
 import { DndContext, DragEndEvent, DragOverlay, useDraggable, useDroppable } from '@dnd-kit/core';
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/lib/api";
+import { startOfWeek, endOfWeek, addWeeks, format } from "date-fns";
+import { es } from "date-fns/locale";
+
 
 const HORAS = Array.from({ length: 13 }, (_, i) => `${8 + i}:00`);
 const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -17,7 +20,7 @@ interface Medico {
   nombre?: string;
   apellido?: string;
   especialidad: string;
-  user?: { nombre: string; apellido: string; };
+  usuario?: { nombre: string; apellido: string; };
 }
 
 interface Turno {
@@ -36,13 +39,22 @@ function MedicoCard({ medico }: { medico: Medico }) {
     id: `medico-${medico.id}`,
     data: { medico }
   });
-  const nombre = medico.user ? `${medico.user.nombre} ${medico.user.apellido}` : `${medico.nombre || ''} ${medico.apellido || ''}`;
+  // Obtiene el nombre completo del médico
+  const nombre = medico.usuario
+    ? `${medico.usuario.nombre} ${medico.usuario.apellido}`
+    : `${medico.nombre || ''} ${medico.apellido || ''}`;
+
+  // Formatea la especialidad para mostrarla legible
+  const especialidad = medico.especialidad
+    ? medico.especialidad.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    : 'Sin especialidad';
+
 
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
       className={`p-3 bg-primary/10 border border-primary rounded-lg cursor-move hover:bg-primary/20 transition-colors ${isDragging ? 'opacity-50' : ''}`}>
       <p className="font-medium text-sm">{nombre}</p>
-      <p className="text-xs text-muted-foreground capitalize">{medico.especialidad?.replace(/_/g, ' ')}</p>
+      <p className="text-xs text-muted-foreground capitalize">{especialidad}</p>
     </div>
   );
 }
@@ -55,7 +67,7 @@ function CeldaTurno({ dia, hora, turno }: { dia: number; hora: string; turno?: T
       className={`min-h-[80px] border rounded-lg p-2 transition-colors ${isOver ? 'bg-primary/20 border-primary' : 'bg-card hover:bg-accent/10'} ${turno ? 'bg-primary/10' : ''}`}>
       {turno && (
         <div className="text-xs">
-          <p className="font-medium">{turno.medico?.user?.nombre || turno.medico?.nombre} {turno.medico?.user?.apellido || turno.medico?.apellido}</p>
+          <p className="font-medium">{turno.medico?.usuario?.nombre || turno.medico?.nombre} {turno.medico?.usuario?.apellido || turno.medico?.apellido}</p>
           <p className="text-muted-foreground text-[10px]">{turno.cargo}</p>
         </div>
       )}
@@ -145,17 +157,15 @@ export default function GestionTurnos() {
     const slotData = over.data.current as { dia: number; hora: string };
     if (!medicoData || !slotData) return;
 
-    const turnoExistente = turnos.find(t => {
-      const d = new Date(t.fecha).getDay();
-      return d === slotData.dia && t.hora_inicio === slotData.hora;
-    });
-
-    if (turnoExistente) {
+    const fecha = getDateForDia(slotData.dia);
+    const turnoExistente = turnos.find(t =>
+      t.fecha === fecha && t.hora_inicio === slotData.hora
+    );
+      if (turnoExistente) {
       toast({ title: "Ya existe un turno", variant: "destructive" });
       return;
     }
 
-    const fecha = getDateForDia(slotData.dia);
     const nuevoTurno: Turno = {
       id: `temp-${Date.now()}`,
       medico_id: medicoData.id,
@@ -167,16 +177,16 @@ export default function GestionTurnos() {
       medico: medicoData
     };
     setTurnos([...turnos, nuevoTurno]);
-    toast({ title: `Turno asignado a ${medicoData.user?.nombre || medicoData.nombre}` });
+    toast({ title: `Turno asignado a ${medicoData.usuario?.nombre || medicoData.nombre}` });
   };
 
-  const getDateForDia = (dia: number) => {
-    const today = new Date();
-    const diff = dia - today.getDay() + (semanaActual * 7);
-    const date = new Date(today);
-    date.setDate(today.getDate() + diff);
-    return date.toISOString().split('T')[0];
-  };
+  function getDateForDia(dia: number) {
+    // Lunes = 1, Martes = 2, ..., Sábado = 6
+    const inicioSemana = startOfWeek(addWeeks(new Date(), semanaActual), { weekStartsOn: 1 }); // Lunes
+    const fecha = new Date(inicioSemana);
+    fecha.setDate(inicioSemana.getDate() + dia - 1); // <-- Suma dia directamente
+    return fecha.toISOString().split('T')[0];
+  }
 
   const handleSave = async () => {
     if (!cesfam) {
@@ -207,7 +217,7 @@ export default function GestionTurnos() {
 
       for (const turno of newTurnos) {
         await api.createTurno({
-          medico_id: turno.medico_id,
+          medico: turno.medico_id,
           fecha: turno.fecha,
           hora_inicio: turno.hora_inicio,
           hora_fin: turno.hora_fin,
@@ -235,11 +245,21 @@ export default function GestionTurnos() {
     }
   };
 
+  // Calcula el rango de la semana actual
+  function getSemanaRango(semanaActual: number) {
+    const hoy = new Date();
+    const inicio = startOfWeek(addWeeks(hoy, semanaActual), { weekStartsOn: 1 }); // Lunes
+    const fin = endOfWeek(addWeeks(hoy, semanaActual), { weekStartsOn: 1 });     // Domingo
+    return {
+      inicio,
+      fin,
+      texto: `${format(inicio, "dd MMMM", { locale: es })} - ${format(fin, "dd MMMM", { locale: es })}`
+    };
+  };
+
   const getTurnoParaSlot = (dia: number, hora: string) => {
-    return turnos.find(t => {
-      const d = new Date(t.fecha).getDay();
-      return d === dia && t.hora_inicio === hora;
-    });
+    const fechaSlot = getDateForDia(dia); // fecha ISO para la celda
+    return turnos.find(t => t.fecha === fechaSlot && t.hora_inicio === hora);
   };
 
   const activeMedico = activeId ? medicos.find(m => `medico-${m.id}` === activeId) : null;
@@ -291,27 +311,35 @@ export default function GestionTurnos() {
         </Card>
 
         {cesfam ? (
-          <div className="grid lg:grid-cols-[300px,1fr] gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Médicos Disponibles</CardTitle>
-                <CardDescription>Arrastra para asignar</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {medicos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">No hay médicos en este CESFAM</p>
-                ) : medicos.map((m) => <MedicoCard key={m.id} medico={m} />)}
-              </CardContent>
-            </Card>
+        <div className="grid lg:grid-cols-[300px,1fr] gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Médicos Disponibles</CardTitle>
+              <CardDescription>Arrastra para asignar</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {medicos.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">No hay médicos en este CESFAM</p>
+              ) : medicos.map((m) => <MedicoCard key={m.id} medico={m} />)}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" />Calendario</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />Calendario
+                </CardTitle>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="icon" onClick={() => setSemanaActual(s => s - 1)}><ChevronLeft className="h-4 w-4" /></Button>
-                  <Badge variant="secondary">Semana {semanaActual + 1}</Badge>
-                  <Button variant="outline" size="icon" onClick={() => setSemanaActual(s => s + 1)}><ChevronRight className="h-4 w-4" /></Button>
+                  <Button variant="outline" size="icon" onClick={() => setSemanaActual(s => s - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {getSemanaRango(semanaActual).texto}
+                  </span>
+                  <Button variant="outline" size="icon" onClick={() => setSemanaActual(s => s + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -344,7 +372,7 @@ export default function GestionTurnos() {
       <DragOverlay>
         {activeMedico && (
           <div className="p-3 bg-primary/10 border border-primary rounded-lg shadow-lg">
-            <p className="font-medium text-sm">{activeMedico.user?.nombre || activeMedico.nombre}</p>
+            <p className="font-medium text-sm">{activeMedico.usuario?.nombre || activeMedico.nombre}</p>
           </div>
         )}
       </DragOverlay>

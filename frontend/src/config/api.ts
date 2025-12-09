@@ -13,4 +13,5 @@ export const API_ENDPOINTS = {
   CESFAMS: `${API_BASE_URL}/api/cesfams/`,
   MEDICOS: `${API_BASE_URL}/api/medicos/`,
   PACIENTES: `${API_BASE_URL}/api/pacientes/`,
+  USUARIOS: `${API_BASE_URL}/api/usuarios/`,
 };

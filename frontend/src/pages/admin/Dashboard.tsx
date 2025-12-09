@@ -8,6 +8,8 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [totalMedicos, setTotalMedicos] = useState(0);
   const [totalCitas, setTotalCitas] = useState(0);
+  const [totalUsuarios, setTotalUsuarios] = useState(0);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,6 +24,13 @@ export default function Dashboard() {
           const citasList = Array.isArray(citasRes) ? citasRes : (citasRes.results || []);
           setTotalCitas(citasList.length);
         } catch { setTotalCitas(0); }
+
+        try {
+          const usuariosRes = await api.getUsuarios(token);
+          const usuariosList = Array.isArray(usuariosRes) ? usuariosRes : (usuariosRes.results || []);
+          setTotalUsuarios(usuariosList.length);
+        } catch { setTotalUsuarios(0); }
+
       } catch (err) {
         console.error('Error fetching dashboard data:', err);
       } finally { setLoading(false); }
@@ -69,8 +78,8 @@ export default function Dashboard() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
-            <p className="text-xs text-muted-foreground">Conectar endpoint</p>
+            <div className="text-2xl font-bold">{totalUsuarios}</div>
+            <p className="text-xs text-muted-foreground">Usuarios Registrados</p>
           </CardContent>
         </Card>
 

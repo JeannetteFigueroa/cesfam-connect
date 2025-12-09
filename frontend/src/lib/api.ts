@@ -2,6 +2,19 @@ import { API_ENDPOINTS, API_BASE_URL } from "@/config/api";
 
 export const api = {
   // ========================
+  // USUARIOS APP
+  // ========================
+  getUsuarios: async (token: string) => {
+    const res = await fetch(API_ENDPOINTS.USUARIOS, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!res.ok) throw new Error("Error al obtener usuarios");
+    return await res.json();
+  },
+
+  // ========================
   // CESFAMS
   // ========================
   async getCesfams() {
@@ -259,6 +272,8 @@ export const api = {
       },
       body: JSON.stringify(data),
     });
+    console.log('API Response:', res)
+    console.log('Saving disponibilidad with data:', data)
     if (!res.ok) {
       const errorData = await res.json().catch(() => ({}));
       throw new Error(errorData.detail || errorData.error || "Error al guardar disponibilidad");
