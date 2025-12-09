@@ -17,6 +17,9 @@ class TurnoViewSet(viewsets.ModelViewSet):
         
         if self.request.user.role == 'medico':
             queryset = queryset.filter(medico__usuario=self.request.user)
+        elif self.request.user.role == 'admin':
+            # Administradores ven todos los turnos
+            pass
         
         # Filtros
         fecha_inicio = self.request.query_params.get('fecha_inicio')
@@ -28,6 +31,34 @@ class TurnoViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(fecha__lte=fecha_fin)
         
         return queryset
+
+    def perform_create(self, serializer):
+        """
+        Solo administradores pueden crear turnos.
+        Médicos no pueden crear sus propios turnos (solo verlos).
+        """
+        if self.request.user.role != 'admin':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Solo los administradores pueden crear turnos")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        """
+        Solo administradores pueden actualizar turnos.
+        """
+        if self.request.user.role != 'admin':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Solo los administradores pueden actualizar turnos")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Solo administradores pueden eliminar turnos.
+        """
+        if self.request.user.role != 'admin':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("Solo los administradores pueden eliminar turnos")
+        instance.delete()
 
     @action(detail=False, methods=['get'])
     def mis_turnos(self, request):

@@ -14,7 +14,15 @@ from rest_framework.permissions import IsAdminUser
 class MedicoViewSet(viewsets.ModelViewSet):
     queryset = Medico.objects.select_related('usuario', 'cesfam')
     serializer_class = MedicoSerializer
-    permission_classes = [IsAdminUser]
+    
+    def get_permissions(self):
+        """
+        Permite a usuarios autenticados (pacientes, médicos) ver médicos.
+        Solo administradores pueden crear, modificar o eliminar.
+        """
+        if self.action in ['list', 'retrieve']:
+            return [IsAuthenticated()]
+        return [IsAdminUser()]
 
     def get_queryset(self):
         queryset = Medico.objects.select_related("usuario", "cesfam").all()
@@ -115,12 +123,21 @@ class DisponibilidadMedicoViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
+        """
+        Médicos solo ven su propia disponibilidad.
+        Administradores ven todas las disponibilidades.
+        """
         if self.request.user.role == 'medico':
             return self.queryset.filter(medico__usuario=self.request.user)
-        return self.queryset
+        elif self.request.user.role == 'admin':
+            return self.queryset.all()
+        return self.queryset.none()
 
     def perform_create(self, serializer):
-        # Asociar automáticamente al médico autenticado
+        """
+        Médicos: asociar automáticamente a su perfil.
+        Administradores: pueden especificar el médico en los datos.
+        """
         if self.request.user.role == 'medico':
             try:
                 medico = Medico.objects.get(usuario=self.request.user)
@@ -128,8 +145,35 @@ class DisponibilidadMedicoViewSet(viewsets.ModelViewSet):
             except Medico.DoesNotExist:
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied("No eres médico")
-        else:
+        elif self.request.user.role == 'admin':
+            # Administradores pueden crear disponibilidad para cualquier médico
             serializer.save()
+        else:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para crear disponibilidad")
+
+    def perform_update(self, serializer):
+        """
+        Médicos solo pueden actualizar su propia disponibilidad.
+        Administradores pueden actualizar cualquier disponibilidad.
+        """
+        if self.request.user.role == 'medico':
+            disponibilidad = self.get_object()
+            if disponibilidad.medico.usuario != self.request.user:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Solo puedes actualizar tu propia disponibilidad")
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        """
+        Médicos solo pueden eliminar su propia disponibilidad.
+        Administradores pueden eliminar cualquier disponibilidad.
+        """
+        if self.request.user.role == 'medico':
+            if instance.medico.usuario != self.request.user:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("Solo puedes eliminar tu propia disponibilidad")
+        instance.delete()
 
     @action(detail=False, methods=['get'], url_path='mi_disponibilidad')
     def mi_disponibilidad(self, request):

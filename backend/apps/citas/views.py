@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from .models import Cita, HistorialClinico
@@ -21,8 +21,31 @@ class CitaViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(paciente__usuario=self.request.user)
         elif self.request.user.role == 'medico':
             queryset = queryset.filter(medico__usuario=self.request.user)
+        elif self.request.user.role == 'admin':
+            # Administradores ven todas las citas
+            pass
         
         return queryset
+
+    def perform_create(self, serializer):
+        """
+        Asociar automáticamente la cita al paciente autenticado.
+        Solo pacientes pueden crear citas para sí mismos.
+        """
+        if self.request.user.role == 'paciente':
+            from apps.pacientes.models import Paciente
+            try:
+                paciente = Paciente.objects.get(usuario=self.request.user)
+                serializer.save(paciente=paciente)
+            except Paciente.DoesNotExist:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("No tienes un perfil de paciente")
+        elif self.request.user.role == 'admin':
+            # Administradores pueden crear citas para cualquier paciente
+            serializer.save()
+        else:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("No tienes permiso para crear citas")
 
     @action(detail=False, methods=['get'])
     def mis_citas(self, request):
@@ -36,7 +59,7 @@ class CitaViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(citas, many=True)
         return Response(serializer.data)
 
-    @action(detail=False, methods=['get'], url_path='horarios-disponibles', permission_classes=[AllowAny])
+    @action(detail=False, methods=['get'], url_path='horarios-disponibles', permission_classes=[IsAuthenticated])
     def horarios_disponibles(self, request):
         """
         Obtiene los horarios disponibles para un médico en una fecha específica.
